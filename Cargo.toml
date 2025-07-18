@@ -1,0 +1,57 @@
+[workspace]
+members = [
+    "markstr-core",
+    "markstr-wasm",
+    "markstr-cli"
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["AbdelStark <abdel@stark.technologies>"]
+license = "MIT"
+repository = "https://github.com/AbdelStark/markstr"
+homepage = "https://github.com/AbdelStark/markstr"
+description = "Nostr-based Bitcoin prediction markets using CSFS and Taproot"
+keywords = ["bitcoin", "nostr", "prediction-markets", "csfs", "taproot"]
+categories = ["cryptography", "web-programming"]
+
+[workspace.dependencies]
+# Core Bitcoin functionality
+bitcoin = { version = "0.32", default-features = false }
+nostr = { version = "0.39.0", default-features = false }
+
+# Cryptography
+secp256k1 = "0.29"
+hex = "0.4"
+sha2 = "0.10"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Utilities
+uuid = { version = "1.0", features = ["v4"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+# Async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# WASM specific
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+wee_alloc = { version = "0.4", optional = true }
+getrandom = { version = "0.2", features = ["js"] }
+
+# CLI specific
+clap = { version = "4.0", features = ["derive"] }
+inquire = "0.7"
+colored = "2.0"

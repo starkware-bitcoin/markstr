@@ -1,0 +1,38 @@
+[package]
+name = "markstr-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Command-line interface for markstr prediction markets"
+keywords.workspace = true
+categories.workspace = true
+
+[[bin]]
+name = "markstr"
+path = "src/main.rs"
+
+[dependencies]
+# Core markstr functionality
+markstr-core = { path = "../markstr-core" }
+
+# CLI
+clap.workspace = true
+inquire.workspace = true
+colored.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+anyhow.workspace = true
+
+# Utilities
+chrono.workspace = true
+tokio.workspace = true
+
+[features]
+default = []

@@ -1,0 +1,52 @@
+[package]
+name = "markstr-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "WebAssembly bindings for markstr prediction markets"
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Core markstr functionality
+markstr-core = { path = "../markstr-core" }
+
+# Core Bitcoin functionality (with WASM-compatible features)
+bitcoin = { version = "0.32", default-features = false }
+hex.workspace = true
+sha2.workspace = true
+
+# WASM bindings
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true }
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+serde-wasm-bindgen = "0.6"
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Utilities
+chrono = { workspace = true, features = ["wasm-bindgen"] }
+uuid = { workspace = true, features = ["v4", "js"] }
+console_error_panic_hook = { workspace = true, optional = true }
+wee_alloc = { workspace = true, optional = true }
+
+[dependencies.getrandom]
+workspace = true
+
+[features]
+default = ["wasm"]
+wasm = ["wasm-bindgen", "wasm-bindgen-futures", "js-sys", "web-sys", "console_error_panic_hook"]
+wee_alloc = ["dep:wee_alloc"]
