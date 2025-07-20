@@ -1,0 +1,4 @@
+[[hooks]]
+stage = "pre_build"
+command = "sh"
+command_arguments = ["-c", "if [ \"$TRUNK_PROFILE\" = \"debug\" ]; then tailwindcss4 -i input.css -o output.css --minify; fi"]
