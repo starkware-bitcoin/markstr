@@ -2,7 +2,8 @@
 members = [
     "markstr-core",
     "markstr-wasm",
-    "markstr-cli"
+    "markstr-cli", 
+    "yew-webapp"
 ]
 resolver = "2"
 
@@ -43,12 +44,12 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 tokio = { version = "1.0", features = ["full"] }
 
 # WASM specific
-wasm-bindgen = { version = "0.2", optional = true }
-wasm-bindgen-futures = { version = "0.4", optional = true }
-js-sys = { version = "0.3", optional = true }
-web-sys = { version = "0.3", optional = true }
-console_error_panic_hook = { version = "0.1", optional = true }
-wee_alloc = { version = "0.4", optional = true }
+wasm-bindgen = { version = "0.2" }
+wasm-bindgen-futures = { version = "0.4" }
+js-sys = { version = "0.3" }
+web-sys = { version = "0.3" }
+console_error_panic_hook = { version = "0.1" }
+wee_alloc = { version = "0.4" }
 getrandom = { version = "0.2", features = ["js"] }
 
 # CLI specific
