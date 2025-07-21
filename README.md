@@ -1,17 +1,19 @@
 # Markstr
 
-> **Nostr-based Bitcoin Prediction Markets using CSFS and Taproot**
+> **Bitcoin Prediction Markets Proof of Concept using CSFS and Taproot**
 
-Markstr is a comprehensive toolkit for creating and managing decentralized prediction markets on Bitcoin, leveraging Nostr for oracle communication and CSFS (CheckSigFromStack) for cryptographic verification.
+Markstr is an advanced proof of concept for decentralized prediction markets on Bitcoin, leveraging Nostr for oracle communication and CSFS (CheckSigFromStack) for oracle outcome signature onchain verification.
 
-## ✨ Features
+**Note**: This project requires Bitcoin opcodes (CSFS) that are not currently enabled on Bitcoin mainnet. It is designed as a research prototype to demonstrate technical feasibility.
 
-- 🏛️ **Decentralized Markets**: Create binary prediction markets with no central authority
-- ⚡ **Bitcoin Native**: Built on Bitcoin Taproot with CSFS for secure settlement
-- 🔮 **Nostr Oracles**: Leverage Nostr's decentralized network for oracle communication
-- 🌐 **Multi-Platform**: Rust core library, WebAssembly bindings, React webapp, and CLI
-- 🔒 **Cryptographically Secure**: Oracle signatures verified via CSFS scripts
-- 💰 **Proportional Payouts**: Winners receive proportional shares of the total pool
+## Features
+
+- **Decentralized Markets**: Create binary prediction markets with no central authority
+- **Bitcoin Native**: Built on Bitcoin Taproot with CSFS for secure settlement
+- **Nostr Oracles**: Decentralized oracle communication via Nostr protocol
+- **Multi-Platform**: Rust core library, WebAssembly bindings, React webapp, and CLI
+- **Cryptographic Verification**: Oracle signatures verified via CSFS scripts
+- **Proportional Payouts**: Winners receive proportional shares of the total pool
 
 ## 🚀 Quick Start
 
@@ -389,10 +391,12 @@ export class WasmPredictionMarket {
 ## 🌐 Network Support
 
 ### Bitcoin Networks
-- **Mainnet**: Production Bitcoin network
-- **Testnet**: Bitcoin test network
-- **Signet**: Signed test network (default for development)
-- **Regtest**: Local regression testing
+
+**IMPORTANT**: This project cannot run on Bitcoin mainnet as it requires CSFS opcodes that are not currently enabled.
+
+- **Testnet**: Bitcoin test network (limited functionality)
+- **Signet**: Signed test network (recommended for development)
+- **Regtest**: Local regression testing with custom rules
 
 ### Nostr Relays
 - **Public Relays**: Connect to public Nostr relays
@@ -418,21 +422,17 @@ export class WasmPredictionMarket {
 - [ ] Mobile-responsive webapp
 - [ ] REST API for integrations
 
-### Phase 3: Advanced Capabilities 🔮
+### Phase 3: Advanced Capabilities
 - [ ] Liquidity pools and market makers
-- [ ] Automated market maker (AMM) integration
-- [ ] Cross-chain bridge support
 - [ ] Institutional trader tools
-- [ ] Regulatory compliance features
 - [ ] Professional oracle services
+- [ ] Advanced analytics and reporting
 
-### Phase 4: Ecosystem Growth 🌱
-- [ ] Third-party integrations
+### Phase 4: Research & Development
 - [ ] Plugin architecture
-- [ ] Educational resources
 - [ ] Developer tools and SDKs
-- [ ] Community governance
-- [ ] Mainnet production deployment
+- [ ] Educational resources
+- [ ] Research publications and documentation
 
 ## 🤝 Contributing
 
@@ -479,13 +479,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Documentation**: [docs.markstr.com](https://docs.markstr.com)
 - **Issues**: [GitHub Issues](https://github.com/AbdelStark/markstr/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/AbdelStark/markstr/discussions)
-- **Email**: support@markstr.com
 
 ---
 
-**Built with ❤️ by the Markstr team**
-
-*Empowering decentralized prediction markets on Bitcoin*
+**Research prototype for Bitcoin prediction markets using advanced cryptographic techniques**
