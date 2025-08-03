@@ -86,12 +86,14 @@ pub fn verify_signature(message: &str, signature: &str, pubkey: &str) -> Result<
 }
 
 /// Network enum to u8 conversion
-pub fn network_to_u8(network: Network) -> u8 {
+pub const fn network_to_u8(network: Network) -> u8 {
     match network {
         Network::Bitcoin => 0,
         Network::Testnet => 1,
         Network::Signet => 2,
         Network::Regtest => 3,
+        Network::Testnet4 => 4,
+        _ => 5,
     }
 }
 
@@ -102,15 +104,15 @@ pub fn u8_to_network(network: u8) -> Result<Network> {
         1 => Ok(Network::Testnet),
         2 => Ok(Network::Signet),
         3 => Ok(Network::Regtest),
-        _ => Err(MarketError::Network(format!("Invalid network: {}", network))),
+        4 => Ok(Network::Testnet4),
+        _ => Err(MarketError::Network(format!("Invalid network: {network}"))),
     }
 }
 
 /// Format timestamp as human-readable string
 pub fn format_timestamp(timestamp: u64) -> String {
-    use chrono::{DateTime, Utc};
-    let dt = DateTime::from_timestamp(timestamp as i64, 0)
-        .unwrap_or_else(|| DateTime::from_timestamp(0, 0).unwrap());
+    use chrono::DateTime;
+    let dt = DateTime::from_timestamp(timestamp as i64, 0).unwrap_or_default();
     dt.format("%Y-%m-%d %H:%M:%S UTC").to_string()
 }
 
@@ -118,7 +120,7 @@ pub fn format_timestamp(timestamp: u64) -> String {
 pub fn parse_timestamp(timestamp_str: &str) -> Result<u64> {
     timestamp_str
         .parse::<u64>()
-        .map_err(|_| MarketError::Other(format!("Invalid timestamp: {}", timestamp_str)))
+        .map_err(|_| MarketError::Other(format!("Invalid timestamp: {timestamp_str}")))
 }
 
 #[cfg(test)]
@@ -160,3 +162,4 @@ mod tests {
         assert!(!validate_address(invalid_addr, Network::Bitcoin));
     }
 }
+

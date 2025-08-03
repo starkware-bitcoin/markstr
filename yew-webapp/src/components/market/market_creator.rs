@@ -1,0 +1,452 @@
+use web_sys::HtmlInputElement;
+use yew::prelude::*;
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct FormData {
+    pub question: String,
+    pub outcomes: Vec<String>,
+    pub settlement_time: String,
+    pub description: String,
+}
+
+impl Default for FormData {
+    fn default() -> Self {
+        Self {
+            question: String::new(),
+            outcomes: vec!["Yes".to_string(), "No".to_string()],
+            settlement_time: String::new(),
+            description: String::new(),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Default)]
+pub struct FormErrors {
+    pub question: Option<String>,
+    pub outcomes: Option<String>,
+    pub settlement_time: Option<String>,
+}
+
+#[function_component(MarketCreator)]
+pub fn market_creator() -> Html {
+    let nostr_id = nostr_minions::key_manager::use_nostr_key();
+    let relay_ctx = nostr_minions::relay_pool::use_nostr_relay_pool();
+    let form_data = use_state(FormData::default);
+    let errors = use_state(FormErrors::default);
+    let loading = use_state(|| false);
+
+    // Check permissions (commented for you to implement)
+    // let has_permission = use_context::<RoleContext>()
+    //     .map(|ctx| ctx.has_permission("create_market"))
+    //     .unwrap_or(false);
+
+    // Uncomment and implement permission check
+    // if !has_permission {
+    //     return html! {
+    //         <div class="bg-red-400 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6">
+    //             <h2 class="text-2xl font-bold mb-4 font-['Space_Grotesk']">{"❌ ACCESS DENIED"}</h2>
+    //             <p class="text-lg mb-4">{"Only oracles can create markets."}</p>
+    //             <button
+    //                 onclick={/* navigate to roles */}
+    //                 class="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 font-bold hover:transform hover:translate-x-1 hover:translate-y-1 transition-all duration-200"
+    //             >
+    //                 {"SWITCH TO ORACLE"}
+    //             </button>
+    //         </div>
+    //     };
+    // }
+
+    let handle_input_change = {
+        let form_data = form_data.clone();
+        let errors = errors.clone();
+        Callback::from(move |e: Event| {
+            let input: HtmlInputElement = e.target_unchecked_into();
+            let name = input.name();
+            let value = input.value();
+
+            let mut new_form_data = (*form_data).clone();
+            match name.as_str() {
+                "question" => new_form_data.question = value,
+                "description" => new_form_data.description = value,
+                "settlementTime" => new_form_data.settlement_time = value,
+                _ => {}
+            }
+            form_data.set(new_form_data);
+
+            // Clear error when user starts typing
+            let mut new_errors = (*errors).clone();
+            match name.as_str() {
+                "question" => new_errors.question = None,
+                "settlementTime" => new_errors.settlement_time = None,
+                _ => {}
+            }
+            errors.set(new_errors);
+        })
+    };
+
+    let handle_outcome_change = {
+        let form_data = form_data.clone();
+        Callback::from(move |(index, value): (usize, String)| {
+            let mut new_form_data = (*form_data).clone();
+            if index < new_form_data.outcomes.len() {
+                new_form_data.outcomes[index] = value;
+                form_data.set(new_form_data);
+            }
+        })
+    };
+
+    let add_outcome = {
+        let form_data = form_data.clone();
+        Callback::from(move |_| {
+            let mut new_form_data = (*form_data).clone();
+            if new_form_data.outcomes.len() < 5 {
+                new_form_data.outcomes.push(String::new());
+                form_data.set(new_form_data);
+            }
+        })
+    };
+
+    let remove_outcome = {
+        let form_data = form_data.clone();
+        Callback::from(move |index: usize| {
+            let mut new_form_data = (*form_data).clone();
+            if new_form_data.outcomes.len() > 2 {
+                new_form_data.outcomes.remove(index);
+                form_data.set(new_form_data);
+            }
+        })
+    };
+
+    let validate_form = {
+        let form_data = form_data.clone();
+        let errors = errors.clone();
+        Callback::from(move |_| {
+            let mut new_errors = FormErrors::default();
+            let data = &*form_data;
+            web_sys::console::log_1(&format!("{:?}", data).into());
+
+            if data.question.trim().is_empty() {
+                new_errors.question = Some("Question is required".to_string());
+            }
+
+            if data.settlement_time.is_empty() {
+                new_errors.settlement_time = Some("Settlement time is required".to_string());
+            } else {
+                // Add datetime validation logic here
+                // let settlement_time = data.settlement_time.parse::<u64>().unwrap();
+                // if data.settlement_time <= web_sys::js_sys::Date::new_0().to_string() {
+                //     new_errors.settlement_time =
+                //         Some("Settlement time must be in the future".to_string());
+                // }
+            }
+
+            if data.outcomes.iter().any(|o| o.trim().is_empty()) {
+                new_errors.outcomes = Some("All outcomes must be filled".to_string());
+            }
+
+            if data.outcomes.len() < 2 {
+                new_errors.outcomes = Some("At least 2 outcomes are required".to_string());
+            }
+
+            let is_valid = new_errors.question.is_none()
+                && new_errors.settlement_time.is_none()
+                && new_errors.outcomes.is_none();
+
+            errors.set(new_errors);
+            is_valid
+        })
+    };
+
+    let handle_submit = {
+        let validate_form = validate_form.clone();
+        let loading = loading.clone();
+        let form_data = form_data.clone();
+        let nostr_id = nostr_id.clone();
+        Callback::from(move |e: SubmitEvent| {
+            e.prevent_default();
+
+            if !validate_form.emit(()) {
+                return;
+            }
+            let Some(nostr_key) = nostr_id.as_ref() else {
+                return;
+            };
+
+            loading.set(true);
+
+            // Implement market creation logic here
+            let settlement_time = web_sys::js_sys::Date::parse(&form_data.settlement_time);
+            let outcomes: Vec<String> = form_data
+                .outcomes
+                .iter()
+                .filter(|o| !o.trim().is_empty())
+                .cloned()
+                .collect();
+            // let market = markstr_core::PredictionMarket::new(question, outcome_a, outcome_b, oracle_pubkey, settlement_timestamp)
+            let Ok(market) = markstr_core::PredictionMarket::new(
+                form_data.question.clone(),
+                outcomes[0].clone(),
+                outcomes[1].clone(),
+                nostr_key.public_key(),
+                settlement_time.trunc() as u64,
+            ) else {
+                loading.set(false);
+                return;
+            };
+
+            let mut market_event = nostr_minions::nostro2::NostrNote {
+                content: serde_json::to_string(&market).unwrap(),
+                kind: 39812,
+                ..Default::default()
+            };
+            market_event.tags.add_parameter_tag(&market.market_id);
+
+            nostr_key
+                .sign_note(&mut market_event)
+                .expect("Failed to sign market event");
+
+            let _ = relay_ctx.send(market_event);
+
+            loading.set(false);
+        })
+    };
+
+    let handle_cancel = Callback::from(|_| {
+        // Implement navigation to home
+        // navigate("/");
+    });
+
+    let get_min_datetime = || {
+        // Implement getting current time + 30 minutes
+        let now = web_sys::js_sys::Date::new_0();
+        now.set_minutes(now.get_minutes() + 30);
+        // format datetime for input
+        now.to_string().as_string().unwrap_or_default()
+    };
+
+    html! {
+        <div class="space-y-6">
+            // Header
+            <div class="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6">
+                <h2 class="text-2xl font-bold mb-2 font-['Space_Grotesk']">{"🏦 CREATE MARKET"}</h2>
+                <p class="text-gray-600">
+                    {"Create a new prediction market as an oracle"}
+                </p>
+            </div>
+
+            // Form
+            <div class="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-6">
+                <form onsubmit={handle_submit} class="space-y-6">
+                    // Question
+                    <div>
+                        <label class="block text-lg font-bold mb-2 font-['Space_Grotesk']">
+                            {"Market Question *"}
+                        </label>
+                        <input
+                            type="text"
+                            name="question"
+                            value={form_data.question.clone()}
+                            onchange={handle_input_change.clone()}
+                            placeholder="e.g., Will Bitcoin reach $100k by end of 2024?"
+                            class="w-full p-3 border-2 border-black font-mono text-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            maxlength="200"
+                        />
+                        {
+                            if let Some(error) = &errors.question {
+                                html! { <p class="text-red-600 text-sm mt-1">{error}</p> }
+                            } else {
+                                html! {}
+                            }
+                        }
+                        <p class="text-sm text-gray-500 mt-1">
+                            {format!("{}/200 characters", form_data.question.len())}
+                        </p>
+                    </div>
+
+                    // Description
+                    <div>
+                        <label class="block text-lg font-bold mb-2 font-['Space_Grotesk']">
+                            {"Description (Optional)"}
+                        </label>
+                        <textarea
+                            name="description"
+                            value={form_data.description.clone()}
+                            onchange={handle_input_change.clone()}
+                            placeholder="Additional context or rules for the market..."
+                            class="w-full p-3 border-2 border-black font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            rows="3"
+                            maxlength="500"
+                        />
+                        <p class="text-sm text-gray-500 mt-1">
+                            {format!("{}/500 characters", form_data.description.len())}
+                        </p>
+                    </div>
+
+                    // Outcomes
+                    <div>
+                        <label class="block text-lg font-bold mb-2 font-['Space_Grotesk']">
+                            {"Possible Outcomes *"}
+                        </label>
+                        {
+                            form_data.outcomes.iter().enumerate().map(|(index, outcome)| {
+                                let handle_outcome_change = handle_outcome_change.clone();
+                                let remove_outcome = remove_outcome.clone();
+                                let can_remove = form_data.outcomes.len() > 2;
+
+                                html! {
+                                    <div key={index} class="flex items-center mb-2">
+                                        <input
+                                            type="text"
+                                            value={outcome.clone()}
+                                            onchange={
+                                                let handle_outcome_change = handle_outcome_change.clone();
+                                                Callback::from(move |e: Event| {
+                                                    let input: HtmlInputElement = e.target_unchecked_into();
+                                                    handle_outcome_change.emit((index, input.value()));
+                                                })
+                                            }
+                                            placeholder={format!("Outcome {}", index + 1)}
+                                            class="flex-1 p-3 border-2 border-black font-mono text-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                            maxlength="50"
+                                        />
+                                        {
+                                            if can_remove {
+                                                html! {
+                                                    <button
+                                                        type="button"
+                                                        onclick={
+                                                            let remove_outcome = remove_outcome.clone();
+                                                            Callback::from(move |_| remove_outcome.emit(index))
+                                                        }
+                                                        class="ml-2 bg-red-400 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-3 py-3 font-bold hover:transform hover:translate-x-1 hover:translate-y-1 transition-all duration-200"
+                                                    >
+                                                        {"❌"}
+                                                    </button>
+                                                }
+                                            } else {
+                                                html! {}
+                                            }
+                                        }
+                                    </div>
+                                }
+                            }).collect::<Html>()
+                        }
+                        {
+                            if form_data.outcomes.len() < 5 {
+                                html! {
+                                    <button
+                                        type="button"
+                                        onclick={add_outcome}
+                                        class="bg-green-400 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 font-bold hover:transform hover:translate-x-1 hover:translate-y-1 transition-all duration-200"
+                                    >
+                                        {"+ ADD OUTCOME"}
+                                    </button>
+                                }
+                            } else {
+                                html! {}
+                            }
+                        }
+                        {
+                            if let Some(error) = &errors.outcomes {
+                                html! { <p class="text-red-600 text-sm mt-1">{error}</p> }
+                            } else {
+                                html! {}
+                            }
+                        }
+                    </div>
+
+                    // Settlement Time
+                    <div>
+                        <label class="block text-lg font-bold mb-2 font-['Space_Grotesk']">
+                            {"Settlement Time *"}
+                        </label>
+                        <input
+                            type="datetime-local"
+                            name="settlementTime"
+                            value={form_data.settlement_time.clone()}
+                            onchange={handle_input_change.clone()}
+                            min={get_min_datetime()}
+                            class="w-full p-3 border-2 border-black font-mono text-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        />
+                        {
+                            if let Some(error) = &errors.settlement_time {
+                                html! { <p class="text-red-600 text-sm mt-1">{error}</p> }
+                            } else {
+                                html! {}
+                            }
+                        }
+                        <p class="text-sm text-gray-500 mt-1">
+                            {"When the market will be settled and the outcome determined"}
+                        </p>
+                    </div>
+
+                    // Preview
+                    <div class="bg-gray-100 border-2 border-black p-4">
+                        <h3 class="text-lg font-bold mb-2 font-['Space_Grotesk']">{"📋 PREVIEW"}</h3>
+                        <div class="space-y-2">
+                            <div>
+                                <strong>{"Question: "}</strong>
+                                {
+                                    if form_data.question.is_empty() {
+                                        "No question set"
+                                    } else {
+                                        &form_data.question
+                                    }
+                                }
+                            </div>
+                            <div>
+                                <strong>{"Outcomes: "}</strong>
+                                // {
+                                //     let outcomes: Vec<&str> = form_data.outcomes.iter()
+                                //         .filter(|o| !o.trim().is_empty())
+                                //         .map(|s| s.as_str())
+                                //         .collect();
+                                //     if outcomes.is_empty() {
+                                //         "No outcomes set".to_string()
+                                //     } else {
+                                //         outcomes.join(", ")
+                                //     }
+                                // }
+                            </div>
+                            <div>
+                                <strong>{"Settlement: "}</strong>
+                                {
+                                    if form_data.settlement_time.is_empty() {
+                                        "No time set"
+                                    } else {
+                                        // Format the datetime string for display
+                                        &form_data.settlement_time
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    // Submit Button
+                    <div class="flex items-center justify-between">
+                        <button
+                            type="button"
+                            onclick={handle_cancel}
+                            class="bg-gray-400 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-6 py-3 font-bold hover:transform hover:translate-x-1 hover:translate-y-1 transition-all duration-200"
+                        >
+                            {"CANCEL"}
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={*loading}
+                            class="bg-orange-400 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-6 py-3 font-bold hover:transform hover:translate-x-1 hover:translate-y-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {
+                                if *loading {
+                                    "CREATING..."
+                                } else {
+                                    "CREATE MARKET"
+                                }
+                            }
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+}

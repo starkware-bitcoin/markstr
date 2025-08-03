@@ -6,7 +6,7 @@
 //! prediction markets where:
 //! - Markets are created and settled using Nostr events
 //! - Funds are held in Bitcoin Taproot addresses
-//! - Payouts are verified using CSFS (CheckSigFromStack) signatures
+//! - Payouts are verified using CSFS (```CheckSigFromStack```) signatures
 //!
 //! ## Features
 //!
@@ -37,16 +37,17 @@
 
 pub mod error;
 pub mod market;
-pub mod nostr;
+// pub mod nostr;
 pub mod utils;
 
 pub use error::{MarketError, Result};
 pub use market::{Bet, PredictionMarket};
-pub use nostr::NostrClient;
+// pub use nostr::NostrClient;
 pub use utils::*;
 
 /// Default fee for market transactions (1000 satoshis)
 pub const DEFAULT_MARKET_FEE: u64 = 1000;
 
-/// OP_CHECKSIGFROMSTACK opcode (0xcc)
+/// ```OP_CHECKSIGFROMSTACK``` opcode (0xcc)
 pub const OP_CHECKSIGFROMSTACK: u8 = 0xcc;
+
