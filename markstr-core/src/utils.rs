@@ -23,6 +23,26 @@ pub fn sha256_hash(message: &str) -> String {
     hex::encode(hash)
 }
 
+/// Hash a message for Nostr ID
+/// as described in `https://nips.nostr.com/1`
+pub fn sha256_hash_for_nostr_id(
+    content: &str,
+    pubkey: &str,
+    created_at: u64,
+    kind: u64,
+    tags: &[&[&str]],
+) -> String {
+    let mut hasher = Sha256::new();
+    let to_serialize = (0, pubkey, created_at, kind, tags, content);
+    hasher.update(
+        serde_json::to_string(&to_serialize)
+            .unwrap_or_default()
+            .as_bytes(),
+    );
+    let hash = hasher.finalize();
+    hex::encode(hash)
+}
+
 /// Validate a Bitcoin address for the specified network
 pub fn validate_address(address: &str, network: Network) -> bool {
     Address::from_str(address)
@@ -75,14 +95,14 @@ pub fn verify_signature(message: &str, signature: &str, pubkey: &str) -> Result<
         ));
     }
 
-    // In a real implementation, this would:
-    // 1. Parse the signature and pubkey
-    // 2. Hash the message
-    // 3. Verify the signature against the hash using secp256k1
-    // 4. Return the verification result
-
-    // For now, return true for properly formatted inputs
-    Ok(true)
+    use secp256k1::{schnorr, Secp256k1, XOnlyPublicKey};
+    let secp = Secp256k1::verification_only();
+    let public_key = XOnlyPublicKey::from_slice(pubkey.as_bytes())?;
+    let signature = schnorr::Signature::from_slice(signature.as_bytes())?;
+    let message = secp256k1::Message::from_digest_slice(message.as_bytes())?;
+    Ok(secp
+        .verify_schnorr(&signature, &message, &public_key)
+        .is_ok())
 }
 
 /// Network enum to u8 conversion
@@ -161,5 +181,5 @@ mod tests {
         let invalid_addr = "invalid_address";
         assert!(!validate_address(invalid_addr, Network::Bitcoin));
     }
-}
 
+}

@@ -106,7 +106,6 @@ pub fn market_provider(props: &yew::html::ChildrenProps) -> HtmlResult {
                 return;
             }
             if serde_json::from_str::<markstr_core::PredictionMarket>(&last_note.content).is_ok() {
-                web_sys::console::log_1(&"New market received".into());
                 ctx_dispatcher.dispatch(PredictionMarketAction::NewMarket(last_note.clone()));
             }
         };

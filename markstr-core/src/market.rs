@@ -13,6 +13,61 @@ use bitcoin::{
 // use nostr::Event;
 use serde::{Deserialize, Serialize};
 
+/// Represents a prediction outcome that will be used to predefine the market.
+/// This outcome should be verifiable and not be changed after market creation.
+/// We can standardize outcome format to a Nostr event.
+/// The outcome description can be the Nostr event content.
+/// The outcome timestamp can be the Nostr event created_at.
+/// The oracle pubkey can be the Nostr event pubkey.
+/// We can set a static kind XXXX for the event (42 for now).
+/// And a static tag as the character of the outcome.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PredictionOutcome {
+    market_id: String,
+    outcome: String,
+    oracle: String,
+    timestamp: u64,
+    character: char,
+}
+impl PredictionOutcome {
+    pub fn new(market_id: String, outcome: String, oracle: String, timestamp: u64) -> Result<Self> {
+        if outcome.is_empty() {
+            return Err(MarketError::InvalidOutcome(
+                "Outcome cannot be empty".to_string(),
+            ));
+        }
+        if outcome.len() > 255 {
+            return Err(MarketError::InvalidOutcome(
+                "Outcome cannot be longer than 255 characters".to_string(),
+            ));
+        }
+
+        let character = outcome.chars().next().unwrap();
+        Ok(Self {
+            market_id,
+            outcome,
+            oracle,
+            timestamp,
+            character,
+        })
+    }
+    pub fn nostr_id(&self) -> String {
+        crate::sha256_hash_for_nostr_id(
+            &self.outcome,
+            &self.oracle,
+            self.timestamp,
+            42,
+            &[
+                &["market_id", &self.market_id],
+                &["outcome", &self.character.to_string()],
+            ],
+        )
+    }
+    pub fn verify_signature(&self, signature: &str) -> Result<bool> {
+        crate::verify_signature(&self.nostr_id(), signature, &self.oracle)
+    }
+}
+
 /// Represents a binary prediction market using Nostr oracles and CSFS verification.
 ///
 /// The market creates a Taproot address with two script paths:
@@ -30,10 +85,10 @@ pub struct PredictionMarket {
     pub question: String,
 
     /// Binary outcome A (e.g., "Team A wins", "Yes")
-    pub outcome_a: String,
+    pub outcome_a: PredictionOutcome,
 
     /// Binary outcome B (e.g., "Team B wins", "No")
-    pub outcome_b: String,
+    pub outcome_b: PredictionOutcome,
 
     /// Oracle's Nostr public key (hex-encoded)
     pub oracle_pubkey: String,
@@ -107,6 +162,18 @@ impl PredictionMarket {
                 "Oracle pubkey must be 32-byte hex string".to_string(),
             ));
         }
+        let outcome_a = PredictionOutcome::new(
+            market_id.clone(),
+            outcome_a,
+            oracle_pubkey.clone(),
+            settlement_timestamp,
+        )?;
+        let outcome_b = PredictionOutcome::new(
+            market_id.clone(),
+            outcome_b,
+            oracle_pubkey.clone(),
+            settlement_timestamp,
+        )?;
 
         Ok(Self {
             market_id,
@@ -147,15 +214,15 @@ impl PredictionMarket {
             .map_err(|e| MarketError::InvalidAddress(format!("Failed to create NUMS point: {e}")))
     }
 
-    /// Create the expected outcome message for oracle signing.
-    ///
-    /// Format: "```PredictionMarketId:{market_id}``` Outcome:{outcome} Timestamp:{timestamp}"
-    pub fn create_outcome_message(&self, outcome: &str) -> String {
-        format!(
-            "PredictionMarketId:{} Outcome:{} Timestamp:{}",
-            self.market_id, outcome, self.settlement_timestamp
-        )
-    }
+    // /// Create the expected outcome message for oracle signing.
+    // ///
+    // /// Format: "```PredictionMarketId:{market_id}``` Outcome:{outcome} Timestamp:{timestamp}"
+    // pub fn create_outcome_message(&self, outcome: &str) -> String {
+    //     format!(
+    //         "PredictionMarketId:{} Outcome:{} Timestamp:{}",
+    //         self.market_id, outcome, self.settlement_timestamp
+    //     )
+    // }
 
     /// Create CSFS script for a specific outcome.
     ///
@@ -168,8 +235,10 @@ impl PredictionMarket {
     /// ```
     pub fn create_outcome_script(&self, outcome: &str) -> Result<ScriptBuf> {
         // Create expected outcome message and hash it
-        let outcome_message = self.create_outcome_message(outcome);
-        let outcome_hash = sha256::Hash::hash(outcome_message.as_bytes());
+        // A nostr event derives an `id` which is the sha256 hash of the content, pubkey, created_at,
+        // kind, and tags. Each outcome can be the derived id of a nostr event, so it can be recreated
+        // and verified in a client-side application.
+        let outcome_hash = sha256::Hash::hash(outcome.as_bytes());
 
         // Parse oracle pubkey
         let oracle_pubkey = hex::decode(&self.oracle_pubkey)?;
@@ -205,8 +274,8 @@ impl PredictionMarket {
     /// # Returns
     /// The market's bech32m Taproot address where bets are sent
     pub fn get_market_address(&self) -> Result<String> {
-        let script_a = self.create_outcome_script(&self.outcome_a)?;
-        let script_b = self.create_outcome_script(&self.outcome_b)?;
+        let script_a = self.create_outcome_script(&self.outcome_a.nostr_id())?;
+        let script_b = self.create_outcome_script(&self.outcome_b.nostr_id())?;
         let nums_point = Self::nums_point()?;
         let secp = Secp256k1::new();
 
@@ -292,11 +361,8 @@ impl PredictionMarket {
     /// * `outcome` - Which outcome won ('A' or 'B')
     pub fn settle_market(
         &mut self,
-        // oracle_event: &Event,
-        pubkey: &str,
-        created_at: u64,
-        content: &str,
-        outcome: char,
+        outcome: &PredictionOutcome,
+        outcome_signature: &str,
     ) -> Result<()> {
         if self.settled {
             return Err(MarketError::Settlement(
@@ -305,33 +371,33 @@ impl PredictionMarket {
         }
 
         // Verify oracle signature
-        // if !oracle_event.verify() {
-        //     return Err(MarketError::InvalidSignature(
-        //         "Invalid oracle signature".to_string(),
-        //     ));
-        // }
+        if !outcome.verify_signature(outcome_signature)? {
+            return Err(MarketError::InvalidSignature(
+                "Invalid oracle signature".to_string(),
+            ));
+        }
 
         // Verify oracle pubkey matches
-        if pubkey != self.oracle_pubkey {
+        if outcome.oracle != self.oracle_pubkey {
             return Err(MarketError::Oracle("Oracle pubkey mismatch".to_string()));
         }
 
         // Verify timestamp is at or after settlement time
-        if created_at < self.settlement_timestamp {
+        if outcome.timestamp < self.settlement_timestamp {
             return Err(MarketError::Oracle(
                 "Oracle signed before settlement time".to_string(),
             ));
         }
 
         // Verify outcome message format
-        let expected_outcome = match outcome.to_ascii_uppercase() {
+        let expected_outcome = match outcome.character.to_ascii_uppercase() {
             'A' => &self.outcome_a,
             'B' => &self.outcome_b,
             _ => return Err(MarketError::InvalidBet("Invalid outcome".to_string())),
         };
 
-        let expected_message = self.create_outcome_message(expected_outcome);
-        if content != expected_message {
+        let expected_message = expected_outcome.nostr_id();
+        if outcome.nostr_id() != expected_message {
             return Err(MarketError::Oracle(
                 "Oracle message doesn't match expected format".to_string(),
             ));
@@ -339,7 +405,7 @@ impl PredictionMarket {
 
         // Mark market as settled
         self.settled = true;
-        self.winning_outcome = Some(outcome.to_ascii_uppercase());
+        self.winning_outcome = Some(outcome.character.to_ascii_uppercase());
 
         Ok(())
     }
@@ -415,8 +481,7 @@ impl PredictionMarket {
     /// `true` if the signature is valid for the outcome, `false` otherwise
     pub fn verify_csfs_signature(&self, signature: &[u8], outcome: &str) -> Result<bool> {
         // Create expected outcome message and hash it
-        let outcome_message = self.create_outcome_message(outcome);
-        let outcome_hash = sha256::Hash::hash(outcome_message.as_bytes());
+        let outcome_hash = sha256::Hash::hash(outcome.as_bytes());
 
         // Parse oracle pubkey
         let oracle_pubkey_bytes = hex::decode(&self.oracle_pubkey)?;
@@ -437,10 +502,8 @@ impl PredictionMarket {
         }
 
         let secp = Secp256k1::new();
-        let schnorr_sig =
-            bitcoin::secp256k1::schnorr::Signature::from_slice(signature).map_err(|e| {
-                MarketError::InvalidSignature(format!("Invalid signature format: {e}"))
-            })?;
+        let schnorr_sig = bitcoin::secp256k1::schnorr::Signature::from_slice(signature)
+            .map_err(|e| MarketError::InvalidSignature(format!("Invalid signature format: {e}")))?;
 
         // Verify signature
         match secp.verify_schnorr(&schnorr_sig, &message, &oracle_pubkey) {
@@ -472,8 +535,7 @@ impl PredictionMarket {
         }
 
         // Create expected outcome message and hash it
-        let outcome_message = self.create_outcome_message(outcome);
-        let outcome_hash = sha256::Hash::hash(outcome_message.as_bytes());
+        let outcome_hash = sha256::Hash::hash(outcome.as_bytes());
 
         // Create message from hash
         let message = Message::from_digest_slice(outcome_hash.as_byte_array()).map_err(|e| {
@@ -492,4 +554,3 @@ impl PredictionMarket {
         Ok(signature.serialize().to_vec())
     }
 }
-

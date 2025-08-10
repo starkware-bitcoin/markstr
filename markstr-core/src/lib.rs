@@ -26,13 +26,14 @@
 //!     "Who will win the 2024 election?".to_string(),
 //!     "Candidate A".to_string(),
 //!     "Candidate B".to_string(),
-//!     "oracle_pubkey_hex".to_string(),
+//!     "ee96d4b9c5e16f3b11e33bb27fe39ae7a57daa6b24210de5b39237993742cc0a".to_string(),
 //!     1735689600, // Settlement timestamp
 //! )?;
 //!
 //! // Get the market's Bitcoin address for betting
 //! let market_address = market.get_market_address()?;
 //! println!("Send bets to: {}", market_address);
+//! Ok::<(), markstr_core::MarketError>(())
 //! ```
 
 pub mod error;
@@ -50,4 +51,3 @@ pub const DEFAULT_MARKET_FEE: u64 = 1000;
 
 /// ```OP_CHECKSIGFROMSTACK``` opcode (0xcc)
 pub const OP_CHECKSIGFROMSTACK: u8 = 0xcc;
-

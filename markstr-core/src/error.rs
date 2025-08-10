@@ -67,6 +67,10 @@ pub enum MarketError {
     /// Network errors
     #[error("Network error: {0}")]
     Network(String),
+    
+    /// Outcome validation errors
+    #[error("Invalid outcome: {0}")]
+    InvalidOutcome(String),
 
     /// Generic error for other cases
     #[error("Market error: {0}")]
