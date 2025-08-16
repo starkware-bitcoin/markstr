@@ -10,11 +10,10 @@ use bitcoin::{
     taproot::TaprootBuilder,
     Address, Network, OutPoint, ScriptBuf,
 };
-// use nostr::Event;
 use serde::{Deserialize, Serialize};
 
 /// Represents a prediction outcome that will be used to predefine the market.
-/// This outcome should be verifiable and not be changed after market creation.
+/// This outcome should be verifiably immutable.
 /// We can standardize outcome format to a Nostr event.
 /// The outcome description can be the Nostr event content.
 /// The outcome timestamp can be the Nostr event created_at.
@@ -29,7 +28,7 @@ pub struct PredictionOutcome {
     character: char,
 }
 impl PredictionOutcome {
-    pub fn new(outcome: String, oracle: String, timestamp: u64) -> Result<Self> {
+    pub fn new(outcome: String, oracle: String, timestamp: u64, character: char) -> Result<Self> {
         if outcome.is_empty() {
             return Err(MarketError::InvalidOutcome(
                 "Outcome cannot be empty".to_string(),
@@ -41,7 +40,6 @@ impl PredictionOutcome {
             ));
         }
 
-        let character = outcome.chars().next().unwrap();
         Ok(Self {
             outcome,
             oracle,
@@ -150,9 +148,9 @@ impl PredictionMarket {
     ) -> Result<Self> {
         // Generate the outcomes
         let outcome_a =
-            PredictionOutcome::new(outcome_a, oracle_pubkey.clone(), settlement_timestamp)?;
+            PredictionOutcome::new(outcome_a, oracle_pubkey.clone(), settlement_timestamp, 'A')?;
         let outcome_b =
-            PredictionOutcome::new(outcome_b, oracle_pubkey.clone(), settlement_timestamp)?;
+            PredictionOutcome::new(outcome_b, oracle_pubkey.clone(), settlement_timestamp, 'B')?;
 
         // Market Id is a Nostr Note ID(sha256) of the question, oracle pubkey, and settlement timestamp
         // with the tag "outcome" and the outcome nostr_ids
@@ -199,16 +197,6 @@ impl PredictionMarket {
         XOnlyPublicKey::from_slice(&nums_bytes)
             .map_err(|e| MarketError::InvalidAddress(format!("Failed to create NUMS point: {e}")))
     }
-
-    // /// Create the expected outcome message for oracle signing.
-    // ///
-    // /// Format: "```PredictionMarketId:{market_id}``` Outcome:{outcome} Timestamp:{timestamp}"
-    // pub fn create_outcome_message(&self, outcome: &str) -> String {
-    //     format!(
-    //         "PredictionMarketId:{} Outcome:{} Timestamp:{}",
-    //         self.market_id, outcome, self.settlement_timestamp
-    //     )
-    // }
 
     /// Create CSFS script for a specific outcome.
     ///

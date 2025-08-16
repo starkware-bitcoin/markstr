@@ -13,7 +13,6 @@ categories.workspace = true
 [dependencies]
 # Core Bitcoin functionality
 bitcoin = { workspace = true, features = ["rand-std", "serde"] }
-# nostr.workspace = true
 
 # Cryptography
 secp256k1.workspace = true
@@ -31,9 +30,6 @@ thiserror.workspace = true
 # Utilities
 uuid.workspace = true
 chrono.workspace = true
-
-# Async runtime
-# tokio.workspace = true
 
 [features]
 default = ["std"]

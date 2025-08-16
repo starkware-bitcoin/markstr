@@ -32,10 +32,6 @@ pub enum MarketError {
     #[error("JSON serialization error: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// Nostr errors
-    // #[error("Nostr error: {0}")]
-    // Nostr(#[from] nostr::Error),
-
     /// Market validation errors
     #[error("Invalid market: {0}")]
     InvalidMarket(String),
@@ -67,7 +63,7 @@ pub enum MarketError {
     /// Network errors
     #[error("Network error: {0}")]
     Network(String),
-    
+
     /// Outcome validation errors
     #[error("Invalid outcome: {0}")]
     InvalidOutcome(String),
@@ -88,4 +84,3 @@ impl From<String> for MarketError {
         Self::Other(msg)
     }
 }
-
