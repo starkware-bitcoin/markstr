@@ -10,7 +10,15 @@ pub type Result<T> = std::result::Result<T, MarketError>;
 pub enum MarketError {
     /// Bitcoin-related errors
     #[error("Bitcoin error: {0}")]
-    Bitcoin(#[from] bitcoin::Error),
+    BitcoinHex(#[from] bitcoin::error::PrefixedHexError),
+
+    /// Bitcoin-related errors
+    #[error("Bitcoin error: {0}")]
+    Bitcoin(#[from] bitcoin::error::UnprefixedHexError),
+
+    /// Taproot errors
+    #[error("Taproot error: {0}")]
+    TaprootBuilderError(#[from] bitcoin::taproot::TaprootBuilderError),
 
     /// Secp256k1 errors
     #[error("Secp256k1 error: {0}")]
@@ -23,10 +31,6 @@ pub enum MarketError {
     /// Serde JSON errors
     #[error("JSON serialization error: {0}")]
     Json(#[from] serde_json::Error),
-
-    /// Nostr errors
-    #[error("Nostr error: {0}")]
-    Nostr(#[from] nostr::Error),
 
     /// Market validation errors
     #[error("Invalid market: {0}")]
@@ -60,6 +64,10 @@ pub enum MarketError {
     #[error("Network error: {0}")]
     Network(String),
 
+    /// Outcome validation errors
+    #[error("Invalid outcome: {0}")]
+    InvalidOutcome(String),
+
     /// Generic error for other cases
     #[error("Market error: {0}")]
     Other(String),
@@ -67,12 +75,12 @@ pub enum MarketError {
 
 impl From<&str> for MarketError {
     fn from(msg: &str) -> Self {
-        MarketError::Other(msg.to_string())
+        Self::Other(msg.to_string())
     }
 }
 
 impl From<String> for MarketError {
     fn from(msg: String) -> Self {
-        MarketError::Other(msg)
+        Self::Other(msg)
     }
 }
