@@ -30,6 +30,7 @@ pub struct MarketListProps {
 pub fn market_list(props: &MarketListProps) -> Html {
     let markets = crate::context::use_market_list();
     let filtered_markets = use_state(Vec::<markstr_core::PredictionMarket>::new);
+    web_sys::console::log_1(&format!("Markets: {markets:?}").into());
 
     // Effect to filter markets
     {

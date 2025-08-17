@@ -182,7 +182,7 @@ pub fn market_creator() -> Html {
                 .filter(|o| !o.trim().is_empty())
                 .cloned()
                 .collect();
-            // let market = markstr_core::PredictionMarket::new(question, outcome_a, outcome_b, oracle_pubkey, settlement_timestamp)
+            // we build a market with two outcomes
             let Ok(market) = markstr_core::PredictionMarket::new(
                 form_data.question.clone(),
                 outcomes[0].clone(),
@@ -194,18 +194,110 @@ pub fn market_creator() -> Html {
                 return;
             };
 
+            // we build a corresponding nostr market event
             let mut market_event = nostr_minions::nostro2::NostrNote {
-                content: serde_json::to_string(&market).unwrap(),
-                kind: 39812,
+                content: market.question.clone(),
+                kind: 42,
+                created_at: settlement_time.trunc() as i64,
+                pubkey: nostr_key.public_key(),
                 ..Default::default()
             };
-            market_event.tags.add_parameter_tag(&market.market_id);
+            market_event.tags.0.push(vec![
+                "outcomes".to_string(),
+                market.outcome_a.nostr_id(),
+                market.outcome_b.nostr_id(),
+            ]);
+            market_event
+                .serialize_id()
+                .expect("Failed to serialize market event");
+            // we check that the market event id is the same as the market id
+            // if the note was not serialized correctly, this will fail
+            assert!(Some(&market.market_id) == market_event.id.as_ref());
 
+            // we sign the market event with the nostr key
             nostr_key
                 .sign_note(&mut market_event)
                 .expect("Failed to sign market event");
 
-            let _ = relay_ctx.send(market_event);
+            // we need a wrapper event to publish the market event to the relay network
+            // because relays mostly only accept events with current timestamps
+            // the market event should be saved by interested parties,
+            // allowing th oracle to "close" the bet by replacing the event.
+            let mut wrapper_market_event = nostr_minions::nostro2::NostrNote {
+                content: serde_json::to_string(&market_event).unwrap(),
+                kind: 30986,
+                ..Default::default()
+            };
+            wrapper_market_event
+                .tags
+                .add_parameter_tag(&market.market_id);
+            nostr_key
+                .sign_note(&mut wrapper_market_event)
+                .expect("Failed to sign market event");
+
+            // we also need to build the outcome notes, and not sign them yet.
+            // we will sign them later, when the bet is settled.
+            // these notes have to be wrapped as "rumors" so that they can be
+            // published to the relay network.
+            let mut outcome_a_note = nostr_minions::nostro2::NostrNote {
+                content: market.outcome_a.outcome.clone(),
+                kind: 42,
+                created_at: market.settlement_timestamp as i64,
+                pubkey: nostr_key.public_key(),
+                ..Default::default()
+            };
+            outcome_a_note
+                .tags
+                .0
+                .push(vec!["outcome".to_string(), 'A'.to_string()]);
+            outcome_a_note
+                .serialize_id()
+                .expect("Failed to serialize outcome a note");
+
+            let mut outcome_b_note = nostr_minions::nostro2::NostrNote {
+                content: market.outcome_b.outcome.clone(),
+                kind: 42,
+                created_at: market.settlement_timestamp as i64,
+                pubkey: nostr_key.public_key(),
+                ..Default::default()
+            };
+            outcome_b_note
+                .tags
+                .0
+                .push(vec!["outcome".to_string(), 'B'.to_string()]);
+            outcome_b_note
+                .serialize_id()
+                .expect("Failed to serialize outcome b note");
+
+            // we assert that the outcome notes are the same as the market notes (id)
+            // same assumption as in the market note, this is to ensure notes can be rebuilt
+            // and verified in a client-side application, without relying on the relay network.
+            assert!(Some(&market.outcome_a.nostr_id()) == outcome_a_note.id.as_ref());
+            assert!(Some(&market.outcome_b.nostr_id()) == outcome_b_note.id.as_ref());
+
+            let mut wrapper_note_a = nostr_minions::nostro2::NostrNote {
+                content: serde_json::to_string(&outcome_a_note).unwrap(),
+                kind: 30987,
+                ..Default::default()
+            };
+            wrapper_note_a.tags.add_parameter_tag(&market.market_id);
+            let mut wrapper_note_b = nostr_minions::nostro2::NostrNote {
+                content: serde_json::to_string(&outcome_b_note).unwrap(),
+                kind: 30988,
+                ..Default::default()
+            };
+            wrapper_note_b.tags.add_parameter_tag(&market.market_id);
+
+            nostr_key
+                .sign_note(&mut wrapper_note_a)
+                .expect("Failed to sign outcome a note");
+            nostr_key
+                .sign_note(&mut wrapper_note_b)
+                .expect("Failed to sign outcome b note");
+
+            let _ = relay_ctx.send(wrapper_market_event);
+            let _ = relay_ctx.send(wrapper_note_a);
+            let _ = relay_ctx.send(wrapper_note_b);
 
             loading.set(false);
         })

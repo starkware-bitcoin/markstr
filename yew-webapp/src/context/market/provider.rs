@@ -5,6 +5,7 @@ pub struct PredictionMarket {
     loaded: bool,
     synced: bool,
     markets: Vec<nostr_minions::nostro2::NostrNote>,
+    outcomes: Vec<nostr_minions::nostro2::NostrNote>,
 }
 impl PredictionMarket {
     pub fn loaded(&self) -> bool {
@@ -13,12 +14,74 @@ impl PredictionMarket {
     pub fn synced(&self) -> bool {
         self.synced
     }
+    pub fn markets(&self) -> Vec<markstr_core::PredictionMarket> {
+        let markets = self
+            .markets
+            .iter()
+            .filter_map(|market| {
+                // Find the outcome Ids in the market note
+                let new_outcomes = market.tags.0.iter().find_map(|tag| {
+                    web_sys::console::log_1(&format!("Tag: {tag:?}").into());
+                    let tag_type = tag.first()?;
+                    if tag_type != "outcomes" {
+                        return None;
+                    }
+                    let outcome_a = tag.get(1)?;
+                    let outcome_b = tag.get(2)?;
+                    Some((outcome_a, outcome_b))
+                })?;
+
+                // Find and rebuild the outcomes in the state
+                let outcome_a = self.outcomes.iter().find_map(|outcome| {
+                    (outcome.id.as_ref() == Some(new_outcomes.0)).then(|| {
+                        let outcome = markstr_core::PredictionOutcome::new(
+                            outcome.content.clone(),
+                            outcome.pubkey.clone(),
+                            outcome.created_at as u64,
+                            outcome.tags.find_tags("outcome").first()?.chars().next()?,
+                        )
+                        .ok()?;
+                        web_sys::console::log_1(&format!("Outcome A: {outcome:?}").into());
+                        Some(outcome)
+                    })
+                })??;
+                web_sys::console::log_1(&format!("Outcome A: {outcome_a:?}").into());
+                let outcome_b = self.outcomes.iter().find_map(|outcome| {
+                    (outcome.id.as_ref() == Some(new_outcomes.1)).then(|| {
+                        let outcome = markstr_core::PredictionOutcome::new(
+                            outcome.content.clone(),
+                            outcome.pubkey.clone(),
+                            outcome.created_at as u64,
+                            outcome.tags.find_tags("outcome").first()?.chars().next()?,
+                        )
+                        .ok()?;
+                        web_sys::console::log_1(&format!("Outcome B: {outcome:?}").into());
+                        Some(outcome)
+                    })
+                })??;
+                web_sys::console::log_1(&format!("Outcome B: {outcome_b:?}").into());
+                // Rebuild the market
+                let market = markstr_core::PredictionMarket::new(
+                    market.content.clone(),
+                    outcome_a.outcome.clone(),
+                    outcome_b.outcome.clone(),
+                    market.pubkey.clone(),
+                    market.created_at as u64,
+                );
+                web_sys::console::log_1(&format!("Market: {market:?}").into());
+                let market = market.ok()?;
+                Some(market)
+            })
+            .collect::<Vec<markstr_core::PredictionMarket>>();
+        markets
+    }
 }
 
 pub enum PredictionMarketAction {
     Loaded,
     Synced,
     NewMarket(nostr_minions::nostro2::NostrNote),
+    NewOutcome(nostr_minions::nostro2::NostrNote),
 }
 
 impl Reducible for PredictionMarket {
@@ -32,6 +95,7 @@ impl Reducible for PredictionMarket {
                     loaded: true,
                     synced: self.synced,
                     markets: self.markets.clone(),
+                    outcomes: self.outcomes.clone(),
                 })
             }
             PredictionMarketAction::Synced => {
@@ -40,16 +104,27 @@ impl Reducible for PredictionMarket {
                     loaded: self.loaded,
                     synced: true,
                     markets: self.markets.clone(),
+                    outcomes: self.outcomes.clone(),
                 })
             }
             PredictionMarketAction::NewMarket(market) => {
-                web_sys::console::log_1(&format!("New market: {market:?}").into());
                 let mut markets = self.markets.clone();
                 markets.push(market);
                 std::rc::Rc::new(Self {
                     loaded: self.loaded,
                     synced: self.synced,
                     markets,
+                    outcomes: self.outcomes.clone(),
+                })
+            }
+            PredictionMarketAction::NewOutcome(outcome) => {
+                let mut outcomes = self.outcomes.clone();
+                outcomes.push(outcome);
+                std::rc::Rc::new(Self {
+                    loaded: self.loaded,
+                    synced: self.synced,
+                    markets: self.markets.clone(),
+                    outcomes,
                 })
             }
         }
@@ -64,6 +139,7 @@ pub fn market_provider(props: &yew::html::ChildrenProps) -> HtmlResult {
         loaded: false,
         synced: false,
         markets: Vec::new(),
+        outcomes: Vec::new(),
     });
     let relay_ctx = nostr_minions::relay_pool::use_nostr_relay_pool();
     let nostr_id = nostr_minions::key_manager::use_nostr_key();
@@ -73,8 +149,10 @@ pub fn market_provider(props: &yew::html::ChildrenProps) -> HtmlResult {
     let relay_ctx_clone = relay_ctx.clone();
     let id_setter = sub_id.setter();
     use_memo((), move |_| {
+        // Optmistic subscription to market events and their outcomes
+        // TODO: Pull only market events, and then query for outcomes specifically
         let market_filter = nostr_minions::nostro2::NostrSubscription {
-            kinds: vec![39812].into(),
+            kinds: vec![30986, 30987, 30988].into(),
             ..Default::default()
         };
         if let nostr_minions::nostro2::NostrClientEvent::Subscribe(_, new_sub_id, ..) =
@@ -102,12 +180,23 @@ pub fn market_provider(props: &yew::html::ChildrenProps) -> HtmlResult {
             let Some(last_note) = notes.last() else {
                 return;
             };
-            if last_note.kind != 39812 {
+            // We don't care about the wrapper notes, only the inner notes
+            let Ok(inner_note) = last_note
+                .content
+                .parse::<nostr_minions::nostro2::NostrNote>()
+            else {
+                web_sys::console::log_1(&format!("Failed to parse note: {last_note:?}").into());
                 return;
+            };
+            // Market events are tagged with "outcomes"
+            if !inner_note.tags.find_tags("outcomes").is_empty() {
+                ctx_dispatcher.dispatch(PredictionMarketAction::NewMarket(inner_note));
+            } else if !inner_note.tags.find_tags("outcome").is_empty() {
+                // Outcome events are tagged with "outcome"
+                ctx_dispatcher.dispatch(PredictionMarketAction::NewOutcome(inner_note));
             }
-            if serde_json::from_str::<markstr_core::PredictionMarket>(&last_note.content).is_ok() {
-                ctx_dispatcher.dispatch(PredictionMarketAction::NewMarket(last_note.clone()));
-            }
+            // TODO: DO more validation here, to ensure the notes are valid before adding them
+            // to the state, as this will cause rerenders.
         };
         run();
         || {}
@@ -125,10 +214,5 @@ pub fn use_market_list() -> Vec<markstr_core::PredictionMarket> {
     let Some(ctx) = use_context::<PredictionMarketStore>() else {
         return vec![];
     };
-    ctx.markets
-        .iter()
-        .filter_map(|market| {
-            serde_json::from_str::<markstr_core::PredictionMarket>(&market.content).ok()
-        })
-        .collect()
+    ctx.markets()
 }

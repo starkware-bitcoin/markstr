@@ -41,7 +41,7 @@ pub mod market;
 pub mod utils;
 
 pub use error::{MarketError, Result};
-pub use market::{Bet, PredictionMarket};
+pub use market::{Bet, PredictionMarket, PredictionOutcome};
 pub use utils::*;
 
 /// Default fee for market transactions (1000 satoshis)

@@ -22,10 +22,10 @@ use serde::{Deserialize, Serialize};
 /// And a static tag as the character of the outcome.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct PredictionOutcome {
-    outcome: String,
-    oracle: String,
-    timestamp: u64,
-    character: char,
+    pub outcome: String,
+    pub oracle: String,
+    pub timestamp: u64,
+    pub character: char,
 }
 impl PredictionOutcome {
     pub fn new(outcome: String, oracle: String, timestamp: u64, character: char) -> Result<Self> {
