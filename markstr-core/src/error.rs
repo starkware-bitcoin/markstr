@@ -32,10 +32,6 @@ pub enum MarketError {
     #[error("JSON serialization error: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// Nostr errors
-    // #[error("Nostr error: {0}")]
-    // Nostr(#[from] nostr::Error),
-
     /// Market validation errors
     #[error("Invalid market: {0}")]
     InvalidMarket(String),

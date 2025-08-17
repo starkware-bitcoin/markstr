@@ -10,11 +10,10 @@ use bitcoin::{
     taproot::TaprootBuilder,
     Address, Network, OutPoint, ScriptBuf,
 };
-// use nostr::Event;
 use serde::{Deserialize, Serialize};
 
 /// Represents a prediction outcome that will be used to predefine the market.
-/// This outcome should be verifiable and not be changed after market creation.
+/// This outcome should be verifiably immutable.
 /// We can standardize outcome format to a Nostr event.
 /// The outcome description can be the Nostr event content.
 /// The outcome timestamp can be the Nostr event created_at.
@@ -23,14 +22,13 @@ use serde::{Deserialize, Serialize};
 /// And a static tag as the character of the outcome.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct PredictionOutcome {
-    market_id: String,
     outcome: String,
     oracle: String,
     timestamp: u64,
     character: char,
 }
 impl PredictionOutcome {
-    pub fn new(market_id: String, outcome: String, oracle: String, timestamp: u64) -> Result<Self> {
+    pub fn new(outcome: String, oracle: String, timestamp: u64, character: char) -> Result<Self> {
         if outcome.is_empty() {
             return Err(MarketError::InvalidOutcome(
                 "Outcome cannot be empty".to_string(),
@@ -42,9 +40,7 @@ impl PredictionOutcome {
             ));
         }
 
-        let character = outcome.chars().next().unwrap();
         Ok(Self {
-            market_id,
             outcome,
             oracle,
             timestamp,
@@ -57,10 +53,7 @@ impl PredictionOutcome {
             &self.oracle,
             self.timestamp,
             42,
-            &[
-                &["market_id", &self.market_id],
-                &["outcome", &self.character.to_string()],
-            ],
+            &[&["outcome", &self.character.to_string()]],
         )
     }
     pub fn verify_signature(&self, signature: &str) -> Result<bool> {
@@ -153,8 +146,21 @@ impl PredictionMarket {
         oracle_pubkey: String,
         settlement_timestamp: u64,
     ) -> Result<Self> {
-        // Generate unique 8-character market ID
-        let market_id = Self::generate_market_id();
+        // Generate the outcomes
+        let outcome_a =
+            PredictionOutcome::new(outcome_a, oracle_pubkey.clone(), settlement_timestamp, 'A')?;
+        let outcome_b =
+            PredictionOutcome::new(outcome_b, oracle_pubkey.clone(), settlement_timestamp, 'B')?;
+
+        // Market Id is a Nostr Note ID(sha256) of the question, oracle pubkey, and settlement timestamp
+        // with the tag "outcome" and the outcome nostr_ids
+        let market_id = crate::sha256_hash_for_nostr_id(
+            &question,
+            &oracle_pubkey,
+            settlement_timestamp,
+            42,
+            &[&["outcomes", &outcome_a.nostr_id(), &outcome_b.nostr_id()]],
+        );
 
         // Validate oracle pubkey format
         if hex::decode(&oracle_pubkey).is_err() || hex::decode(&oracle_pubkey)?.len() != 32 {
@@ -162,18 +168,6 @@ impl PredictionMarket {
                 "Oracle pubkey must be 32-byte hex string".to_string(),
             ));
         }
-        let outcome_a = PredictionOutcome::new(
-            market_id.clone(),
-            outcome_a,
-            oracle_pubkey.clone(),
-            settlement_timestamp,
-        )?;
-        let outcome_b = PredictionOutcome::new(
-            market_id.clone(),
-            outcome_b,
-            oracle_pubkey.clone(),
-            settlement_timestamp,
-        )?;
 
         Ok(Self {
             market_id,
@@ -192,16 +186,6 @@ impl PredictionMarket {
         })
     }
 
-    /// Generate unique 8-character market ID
-    fn generate_market_id() -> String {
-        use bitcoin::secp256k1::rand::{thread_rng, Rng};
-        const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        let mut rng = thread_rng();
-        (0..8)
-            .map(|_| CHARS[rng.gen_range(0..CHARS.len())] as char)
-            .collect()
-    }
-
     /// Generate NUMS (Nothing Up My Sleeve) point for Taproot internal key.
     pub fn nums_point() -> Result<XOnlyPublicKey> {
         let nums_bytes = [
@@ -213,16 +197,6 @@ impl PredictionMarket {
         XOnlyPublicKey::from_slice(&nums_bytes)
             .map_err(|e| MarketError::InvalidAddress(format!("Failed to create NUMS point: {e}")))
     }
-
-    // /// Create the expected outcome message for oracle signing.
-    // ///
-    // /// Format: "```PredictionMarketId:{market_id}``` Outcome:{outcome} Timestamp:{timestamp}"
-    // pub fn create_outcome_message(&self, outcome: &str) -> String {
-    //     format!(
-    //         "PredictionMarketId:{} Outcome:{} Timestamp:{}",
-    //         self.market_id, outcome, self.settlement_timestamp
-    //     )
-    // }
 
     /// Create CSFS script for a specific outcome.
     ///
