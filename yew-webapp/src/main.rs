@@ -136,9 +136,6 @@ fn router() -> Html {
                 components::Route::Betting  => html! {
                     <components::BettingPage />
                 },
-                components::Route::Transactions => html! {
-                    <components::TransactionsPage />
-                },
                 _ => html! {
                     <div class="flex flex-1 items-center justify-center">
                         <div class="text-3xl font-bold text-black font-['Space_Grotesk']">{ "404" }</div>
