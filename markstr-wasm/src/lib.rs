@@ -271,7 +271,7 @@ pub fn sha256_hash(message: &str) -> String {
 #[wasm_bindgen]
 pub fn validate_address(address: &str, network: u8) -> bool {
     let network = match u8_to_network(network) {
-        Ok(n) => network,
+        Ok(n) => n,
         Err(_) => return false,
     };
     
@@ -298,7 +298,7 @@ pub fn verify_signature(
     pubkey: &str,
 ) -> Result<bool, JsValue> {
     verify_signature(message, signature, pubkey)
-        .map_err(|e| JsValue::from_str(&format!("Signature verification failed: {:?}", e)))
+        .map_err(|e| JsValue::from_str(&format!("Signature verification failed: {}", e)))
 }
 
 /// Market analytics helper
