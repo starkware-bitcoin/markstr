@@ -58,7 +58,8 @@ fn app_content() -> Html {
 fn key_check(props: &yew::html::ChildrenProps) -> Html {
     let key_ctx = use_context::<nostr_minions::key_manager::NostrIdStore>()
         .expect("No Nostr key context found");
-    use_memo((), |()| {
+    use_memo(key_ctx, move |key_ctx| {
+        let key_ctx = key_ctx.clone();
         yew::platform::spawn_local(async move {
             if key_ctx.get_nostr_key().await.is_none() && key_ctx.loaded() {
                 let Ok(new_id) =
