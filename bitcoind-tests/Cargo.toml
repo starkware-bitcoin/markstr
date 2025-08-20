@@ -1,0 +1,36 @@
+[package]
+name = "bitcoind-tests"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "bitcoind_tests"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+bitcoin = { workspace = true }
+chrono = { workspace = true }
+
+# RPC client
+bitcoincore-rpc = "0.19"
+
+# Auto-spawn bitcoind in tests (formerly rust-bitcoin/bitcoind; still widely used)
+bitcoind = { version = "0.35", default-features = false, features = ["25_1"] }
+
+# Temporary directories for docker data
+tempfile = "3.8"
+
+# Async optional (not required for basic tests)
+tokio = { workspace = true, optional = true }
+
+[features]
+default = []
+async = ["dep:tokio"]
+
+[dev-dependencies]
+bitcoincore-rpc = "0.19"
