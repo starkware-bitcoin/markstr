@@ -36,10 +36,11 @@
 //! Ok::<(), markstr_core::MarketError>(())
 //! ```
 
+pub mod deposit;
 pub mod error;
 pub mod market;
+pub mod pool;
 pub mod utils;
-pub mod protocol;
 
 pub use error::{MarketError, Result};
 pub use market::{Bet, PredictionMarket};

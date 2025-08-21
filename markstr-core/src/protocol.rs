@@ -1,1 +1,0 @@
-//! Markstr protocol implementation
