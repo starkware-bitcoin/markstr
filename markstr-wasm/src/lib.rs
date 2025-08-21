@@ -4,11 +4,9 @@
 //! This module provides WASM-compatible versions of the core Rust functionality
 //! for use in web applications.
 
-use wasm_bindgen::prelude::*;
+use markstr_core::{utils::*, PredictionMarket};
 use serde::{Deserialize, Serialize};
-use bitcoin::{Address, Network};
-use std::str::FromStr;
-use markstr_core::{PredictionMarket, Bet, utils::*};
+use wasm_bindgen::prelude::*;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global allocator.
 #[cfg(feature = "wee_alloc")]
@@ -125,9 +123,6 @@ impl WasmPredictionMarket {
     /// Get the market's Bitcoin address
     #[wasm_bindgen]
     pub fn get_market_address(&self) -> Result<String, JsValue> {
-        let network = u8_to_network(self.network)
-            .map_err(|e| JsValue::from_str(&format!("Invalid network: {}", e)))?;
-        
         let market = PredictionMarket::new(
             self.question.clone(),
             self.outcome_a.clone(),
@@ -137,7 +132,8 @@ impl WasmPredictionMarket {
         )
         .map_err(|e| JsValue::from_str(&format!("Failed to create market: {}", e)))?;
 
-        market.get_market_address()
+        market
+            .get_market_address()
             .map_err(|e| JsValue::from_str(&format!("Failed to get address: {}", e)))
     }
 
@@ -186,7 +182,7 @@ impl WasmPredictionMarket {
         if winning_outcome != "A" && winning_outcome != "B" {
             return Err(JsValue::from_str("Winning outcome must be 'A' or 'B'"));
         }
-        
+
         self.settled = true;
         self.winning_outcome = Some(winning_outcome);
         Ok(())
@@ -198,9 +194,11 @@ impl WasmPredictionMarket {
         if outcome != "A" && outcome != "B" {
             return Err(JsValue::from_str("Outcome must be 'A' or 'B'"));
         }
-        
-        Ok(format!("PredictionMarketId:{} Outcome:{} Timestamp:{}", 
-                   self.market_id, outcome, self.settlement_timestamp))
+
+        Ok(format!(
+            "PredictionMarketId:{} Outcome:{} Timestamp:{}",
+            self.market_id, outcome, self.settlement_timestamp
+        ))
     }
 
     /// Getters for JavaScript
@@ -258,13 +256,13 @@ impl WasmPredictionMarket {
 /// Utility function to generate a random market ID
 #[wasm_bindgen]
 pub fn generate_market_id() -> String {
-    generate_market_id()
+    markstr_core::utils::generate_market_id()
 }
 
 /// Utility function to hash a message using SHA256
 #[wasm_bindgen]
 pub fn sha256_hash(message: &str) -> String {
-    sha256_hash(message)
+    markstr_core::utils::sha256_hash(message)
 }
 
 /// Utility function to validate a Bitcoin address
@@ -274,30 +272,26 @@ pub fn validate_address(address: &str, network: u8) -> bool {
         Ok(n) => n,
         Err(_) => return false,
     };
-    
-    validate_address(address, network)
+
+    markstr_core::utils::validate_address(address, network)
 }
 
 /// Utility function to convert satoshis to Bitcoin
 #[wasm_bindgen]
 pub fn satoshi_to_btc(satoshi: u64) -> f64 {
-    satoshi_to_btc(satoshi)
+    markstr_core::utils::satoshi_to_btc(satoshi)
 }
 
 /// Utility function to convert Bitcoin to satoshis
 #[wasm_bindgen]
 pub fn btc_to_satoshi(btc: f64) -> u64 {
-    btc_to_satoshi(btc)
+    markstr_core::utils::btc_to_satoshi(btc)
 }
 
 /// Simplified signature verification function (placeholder)
 #[wasm_bindgen]
-pub fn verify_signature(
-    message: &str,
-    signature: &str,
-    pubkey: &str,
-) -> Result<bool, JsValue> {
-    verify_signature(message, signature, pubkey)
+pub fn verify_signature(message: &str, signature: &str, pubkey: &str) -> Result<bool, JsValue> {
+    markstr_core::utils::verify_signature(message, signature, pubkey)
         .map_err(|e| JsValue::from_str(&format!("Signature verification failed: {}", e)))
 }
 
@@ -331,7 +325,7 @@ impl MarketAnalytics {
 
         self.total_bets += 1;
         self.total_volume += amount;
-        
+
         if outcome == "A" {
             self.outcome_a_volume += amount;
         } else {
