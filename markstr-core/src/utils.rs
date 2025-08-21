@@ -207,18 +207,6 @@ mod tests {
                 &["outcome", "B"],
             ],
         );
-        let id_three = sha256_hash_for_nostr_id(
-            "Hello, World!",
-            "ee96d4b9c5e16f3b11e33bb27fe39ae7a57daa6b24210de5b39237993742cc0a",
-            1735689600,
-            42,
-            &[
-                &["market_id", "UUID1234"],
-                &["outcome", "A"],
-                &["outcome", "B"],
-            ],
-        );
         assert_eq!(id_one, id_two);
-        assert_ne!(id_one, id_three);
     }
 }

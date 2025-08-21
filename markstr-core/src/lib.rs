@@ -40,6 +40,8 @@ pub mod deposit;
 pub mod error;
 pub mod market;
 pub mod pool;
+#[cfg(test)]
+pub mod test_utils;
 pub mod utils;
 pub mod withdraw;
 
