@@ -1,4 +1,7 @@
-//! Markstr protocol implementation
+//! Implemention of a CTV coinpool for a prediction market.
+//!
+//! Bets are aggregated into a single UTXO, and the pool is split between the winning bets after the settlement.
+//! In case of an oracle failure, the pool allows to withdraw the bets after a timeout.
 //!
 //! Reuses code from https://github.com/stutxo/op_ctv_payment_pool
 
@@ -12,9 +15,8 @@ use bitcoin::{
     opcodes::all::{OP_DROP, OP_NOP4, OP_NOP5},
     policy::DUST_RELAY_TX_FEE,
     script::Builder,
-    taproot::{Signature, TaprootBuilder},
-    Address, Amount, Network, Opcode, ScriptBuf, Sequence, TxIn, TxOut,
-    XOnlyPublicKey,
+    taproot::TaprootBuilder,
+    Address, Amount, Network, Opcode, ScriptBuf, Sequence, TxOut, XOnlyPublicKey,
 };
 
 use crate::{market::Bet, PredictionMarket, DEFAULT_MARKET_FEE};
@@ -26,25 +28,13 @@ pub const OP_CTV: Opcode = OP_NOP4;
 /// The Check Signature From Stack opcode.
 pub const OP_CSFS: Opcode = OP_NOP5;
 
-#[derive(Clone, Debug)]
-pub enum ProtocolMessage {
-    Bet(Bet),
-    PartialPoolTx(PartialPoolTx),
-}
-
-#[derive(Clone, Debug)]
-pub struct PartialPoolTx {
-    pub input: TxIn,
-    pub signature: Signature,
-}
-
-/// Create the pool address for a market.
+/// Generate the pool address for a market.
 ///
 /// The pool address is a Taproot address with the following structure:
 /// - Path 0: CSFS verification for outcome A
 /// - Path 1: CSFS verification for outcome B
 /// - Path 2: Escape (withdrawal) branch
-pub fn create_pool_address(market: &PredictionMarket) -> anyhow::Result<Address> {
+pub fn generate_pool_address(market: &PredictionMarket) -> anyhow::Result<Address> {
     let all_bets = market
         .bets_a
         .iter()
@@ -127,11 +117,16 @@ pub fn calculate_ctv_hash_for_payout_tx(
     pool_size: u64,
     network: Network,
 ) -> anyhow::Result<[u8; 32]> {
-    let pool_after_fees = pool_size.saturating_sub(DEFAULT_MARKET_FEE);
-    let winning_side_total = winning_bets.iter().map(|bet| bet.amount).sum::<u64>();
-    if winning_side_total == 0 {
+    if winning_bets.is_empty() {
         return Err(anyhow::anyhow!("No winning bets"));
     }
+
+    let pool_after_fees = pool_size.saturating_sub(DEFAULT_MARKET_FEE);
+    let winning_side_total = winning_bets.iter().map(|bet| bet.amount).sum::<u64>();
+    assert!(
+        winning_side_total > 0,
+        "Total amount of winning bets must be greater than 0"
+    );
 
     let mut outputs = Vec::with_capacity(winning_bets.len());
     for bet in winning_bets {

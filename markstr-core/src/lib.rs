@@ -36,9 +36,10 @@
 //! Ok::<(), markstr_core::MarketError>(())
 //! ```
 
+pub mod deposit;
 pub mod error;
 pub mod market;
-pub mod protocol;
+pub mod pool;
 pub mod utils;
 
 pub use error::{MarketError, Result};
