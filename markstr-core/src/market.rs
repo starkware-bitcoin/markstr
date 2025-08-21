@@ -22,11 +22,16 @@ use serde::{Deserialize, Serialize};
 /// And a static tag as the character of the outcome.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct PredictionOutcome {
-    outcome: String,
-    oracle: String,
-    timestamp: u64,
-    character: char,
+    /// The outcome description
+    pub outcome: String,
+    /// The oracle public key
+    pub oracle: String,
+    /// The timestamp of the outcome
+    pub timestamp: u64,
+    /// The character of the outcome
+    pub character: char,
 }
+
 impl PredictionOutcome {
     pub fn new(outcome: String, oracle: String, timestamp: u64, character: char) -> Result<Self> {
         if outcome.is_empty() {
@@ -109,6 +114,9 @@ pub struct PredictionMarket {
 
     /// Winning outcome (if settled)
     pub winning_outcome: Option<char>, // 'A' or 'B'
+
+    /// Timeout for withdrawals after settlement (in case of oracle failure)
+    pub withdraw_timeout: u32,
 }
 
 /// Represents a bet placed by a participant
@@ -183,6 +191,7 @@ impl PredictionMarket {
             bets_b: Vec::new(),
             settled: false,
             winning_outcome: None,
+            withdraw_timeout: 60 * 60 * 24, // 1 day
         })
     }
 
