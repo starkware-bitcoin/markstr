@@ -67,14 +67,14 @@ pub fn generate_payout_outputs(
     }
 
     let mut outputs = Vec::with_capacity(winning_bets.len());
-    for bet in winning_bets {
+    for (i, bet) in winning_bets.iter().enumerate() {
         let address = Address::from_str(&bet.payout_address)
-            .with_context(|| format!("Failed to parse payout address: {}", bet.payout_address))?
+            .with_context(|| format!("Failed to parse payout address for bet {}: {}", i, bet.payout_address))?
             .require_network(network)
             .with_context(|| {
                 format!(
-                    "Address {} is not valid for network {:?}",
-                    bet.payout_address, network
+                    "Bet {} address {} is not valid for network {:?}",
+                    i, bet.payout_address, network
                 )
             })?;
 
@@ -467,6 +467,26 @@ mod tests {
         let fees = MarketFees::default();
         let result = generate_payout_outputs(&empty_bets, 300000, Network::Regtest, &fees);
         assert!(result.is_err(), "Should fail with empty bets");
+    }
+    
+    #[test]
+    fn test_regtest_address_parsing() {
+        // Test that we can parse bcrt1 addresses for regtest
+        let test_addresses = vec![
+            "bcrt1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn",
+            "bcrt1qalqsxa9tlzqq89mvdkqk37c7gvnyadlccudnsg",
+            "bcrt1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8",
+        ];
+        
+        for addr_str in test_addresses {
+            let result = Address::from_str(addr_str);
+            assert!(result.is_ok(), "Failed to parse address {}: {:?}", addr_str, result.err());
+            
+            let address = result.unwrap();
+            let network_result = address.require_network(Network::Regtest);
+            assert!(network_result.is_ok(), "Address {} not valid for regtest: {:?}", 
+                    addr_str, network_result.err());
+        }
     }
     
     #[test]
