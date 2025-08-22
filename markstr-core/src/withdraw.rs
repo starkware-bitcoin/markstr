@@ -13,6 +13,7 @@ use bitcoin::{
     transaction::Version,
     Address, Amount, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
 };
+use std::str::FromStr;
 
 use crate::{
     get_tx_version,
