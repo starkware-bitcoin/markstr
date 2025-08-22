@@ -6,10 +6,10 @@ This component provides end-to-end testing infrastructure for Markstr prediction
 
 ```bash
 # Pull prebuilt CSFS-enabled Bitcoin Core image from GHCR
-docker pull ghcr.io/AbdelStark/bitcoin-csfs:latest
+docker pull ghcr.io/starkware-bitcoin/markstr-bitcoind:latest
 
 # Retag to the name expected by the tests (optional)
-docker tag ghcr.io/AbdelStark/bitcoin-csfs:latest bitcoin/bitcoin-csfs
+docker tag ghcr.io/starkware-bitcoin/markstr-bitcoind:latest bitcoin/bitcoin-csfs
 
 # Run tests (automatically uses the image)
 cargo test -p bitcoind-tests
@@ -30,8 +30,8 @@ The `bitcoind-tests` crate enables:
 ### Prebuilt Image
 
 The image is published to GitHub Container Registry (multi-arch: linux/amd64, linux/arm64):
-- `ghcr.io/AbdelStark/bitcoin-csfs:latest`
-- `ghcr.io/AbdelStark/bitcoin-csfs:<commit>` (e.g., `2025-04-csfs`)
+- `ghcr.io/starkware-bitcoin/markstr-bitcoind:latest`
+- `ghcr.io/starkware-bitcoin/markstr-bitcoind:<commit>` (e.g., `2025-04-csfs`)
 
 You can use it directly, or retag it locally to `bitcoin/bitcoin-csfs` to match the default test harness image name.
 
@@ -61,7 +61,7 @@ Markstr prediction markets use **CheckSigFromStack (CSFS)** opcodes to verify or
 Default build parameters:
 - **Repository**: `https://github.com/jamesob/bitcoin.git`
 - **Branch/Commit**: `2025-04-csfs`
-- **Image Name**: `ghcr.io/AbdelStark/bitcoin-csfs` (retag locally to `bitcoin/bitcoin-csfs` if needed)
+- **Image Name**: `ghcr.io/starkware-bitcoin/markstr-bitcoind` (retag locally to `bitcoin/bitcoin-csfs` if needed)
 
 Override with build arguments to use a different Bitcoin repository or specific commit when building locally.
 

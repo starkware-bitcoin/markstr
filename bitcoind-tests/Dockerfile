@@ -1,3 +1,5 @@
+# Based on willcl-ark/bitcoin-core-docker (master/Dockerfile)
+# https://github.com/willcl-ark/bitcoin-core-docker
 # syntax=docker/dockerfile:1
 
 FROM debian:bookworm

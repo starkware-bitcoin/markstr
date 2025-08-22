@@ -46,5 +46,5 @@ jobs:
             COMMIT=${{ inputs.commit }}
             BITCOIN_REPO=${{ inputs.bitcoin_repo }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/bitcoin-csfs:${{ inputs.commit }}
-            ghcr.io/${{ github.repository_owner }}/bitcoin-csfs:latest
+            ghcr.io/starkware-bitcoin/markstr-bitcoind:${{ inputs.commit }}
+            ghcr.io/starkware-bitcoin/markstr-bitcoind:latest
