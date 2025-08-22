@@ -35,7 +35,6 @@ pub struct PartialDepositTx {
 /// # Arguments
 /// * `market` - The prediction market
 /// * `bet` - The bet containing the input UTXO information
-/// * `fee_per_input` - Fee to pay for this input (in satoshis)
 /// * `input_index` - The index of the input in the combined pooltransaction
 ///
 /// # Returns
@@ -43,7 +42,6 @@ pub struct PartialDepositTx {
 pub fn create_partial_pool_tx(
     market: &PredictionMarket,
     bet: &Bet,
-    fee_per_input: u64,
     input_index: usize,
 ) -> anyhow::Result<PartialDepositTx> {
     let pool_address = generate_pool_address(market)?;
@@ -60,7 +58,7 @@ pub fn create_partial_pool_tx(
     };
 
     // Create the output to the pool address
-    let output_amount = bet.amount.saturating_sub(fee_per_input);
+    let output_amount = bet.amount.saturating_sub(market.fees.fee_per_deposit_output);
     let output = TxOut {
         value: Amount::from_sat(output_amount),
         script_pubkey: pool_address.script_pubkey(),

@@ -5,8 +5,6 @@
 //! 1. Payout transactions - distribute winnings to the winning side after oracle settlement
 //! 2. Escape transactions - return funds to all participants after timeout (oracle failure)
 
-use std::str::FromStr;
-
 use anyhow::{Context, Result};
 use bitcoin::{
     absolute::LockTime,
@@ -15,14 +13,14 @@ use bitcoin::{
     transaction::Version,
     Address, Amount, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
 };
+use std::str::FromStr;
 
 use crate::{
     get_tx_version,
-    market::{Bet, PredictionMarket},
+    market::{Bet, MarketFees, PredictionMarket},
     pool::{
         build_script_for_escape, build_script_for_outcome, calculate_ctv_hash_from_transaction,
     },
-    DEFAULT_MARKET_FEE,
 };
 
 /// Transaction type for withdrawal
@@ -52,12 +50,13 @@ pub fn generate_payout_outputs(
     winning_bets: &[Bet],
     pool_size: u64,
     network: Network,
+    fees: &MarketFees,
 ) -> Result<Vec<TxOut>> {
     if winning_bets.is_empty() {
         return Err(anyhow::anyhow!("No winning bets"));
     }
 
-    let pool_after_fees = pool_size.saturating_sub(DEFAULT_MARKET_FEE);
+    let pool_after_fees = fees.pool_after_fees(pool_size, winning_bets.len());
     let winning_side_total = winning_bets.iter().map(|bet| bet.amount).sum::<u64>();
 
     if winning_side_total == 0 {
@@ -67,14 +66,14 @@ pub fn generate_payout_outputs(
     }
 
     let mut outputs = Vec::with_capacity(winning_bets.len());
-    for bet in winning_bets {
+    for (i, bet) in winning_bets.iter().enumerate() {
         let address = Address::from_str(&bet.payout_address)
-            .with_context(|| format!("Failed to parse payout address: {}", bet.payout_address))?
+            .with_context(|| format!("Failed to parse payout address for bet {}: {}", i, bet.payout_address))?
             .require_network(network)
             .with_context(|| {
                 format!(
-                    "Address {} is not valid for network {:?}",
-                    bet.payout_address, network
+                    "Bet {} address {} is not valid for network {:?}",
+                    i, bet.payout_address, network
                 )
             })?;
 
@@ -83,6 +82,26 @@ pub fn generate_payout_outputs(
             // dust threshold
             outputs.push(TxOut {
                 value: Amount::from_sat(amount),
+                script_pubkey: address.script_pubkey(),
+            });
+        }
+    }
+    
+    // Add administrator fee output if configured
+    if let Some(admin_address) = &fees.administrator_address {
+        if fees.administrator_fee > 0 {
+            let address = Address::from_str(admin_address)
+                .with_context(|| format!("Failed to parse administrator address: {}", admin_address))?
+                .require_network(network)
+                .with_context(|| {
+                    format!(
+                        "Administrator address {} is not valid for network {:?}",
+                        admin_address, network
+                    )
+                })?;
+            
+            outputs.push(TxOut {
+                value: Amount::from_sat(fees.administrator_fee),
                 script_pubkey: address.script_pubkey(),
             });
         }
@@ -140,6 +159,7 @@ pub fn build_withdraw_transaction(params: WithdrawParams) -> Result<Transaction>
                 winning_bets,
                 params.market.total_amount,
                 params.market.network,
+                &params.market.fees,
             )?
         }
         WithdrawType::Escape => {
@@ -319,7 +339,7 @@ mod tests {
     #[test]
     fn test_generate_payout_outputs() {
         let market = create_test_market();
-        let result = generate_payout_outputs(&market.bets_a, 300000, Network::Regtest);
+        let result = generate_payout_outputs(&market.bets_a, market.total_amount, Network::Regtest, &market.fees);
 
         assert!(
             result.is_ok(),
@@ -334,7 +354,7 @@ mod tests {
 
         // Check proportional distribution
         let total_winning = 150000u64; // 100k + 50k
-        let pool_after_fees = 300000u64 - DEFAULT_MARKET_FEE;
+        let pool_after_fees = market.fees.pool_after_fees(market.total_amount, 2); // 2 winning outputs
         let expected_amount_1 = (100000 * pool_after_fees) / total_winning;
         let expected_amount_2 = (50000 * pool_after_fees) / total_winning;
 
@@ -443,7 +463,88 @@ mod tests {
     #[test]
     fn test_generate_payout_outputs_empty_bets() {
         let empty_bets = vec![];
-        let result = generate_payout_outputs(&empty_bets, 300000, Network::Regtest);
+        let fees = MarketFees::default();
+        let result = generate_payout_outputs(&empty_bets, 300000, Network::Regtest, &fees);
         assert!(result.is_err(), "Should fail with empty bets");
+    }
+    
+    #[test]
+    fn test_regtest_address_parsing() {
+        use crate::test_utils::create_valid_regtest_address;
+        use std::str::FromStr;
+        
+        // Test that we can create and use valid regtest addresses
+        let test_addresses = vec![
+            create_valid_regtest_address(1),
+            create_valid_regtest_address(2),
+            create_valid_regtest_address(3),
+        ];
+        
+        for addr_str in &test_addresses {
+            // These should parse correctly since they're created by our test utility
+            let result = Address::from_str(addr_str);
+            assert!(result.is_ok(), "Failed to parse generated address {}: {:?}", addr_str, result.err());
+            
+            let address = result.unwrap();
+            let network_result = address.require_network(Network::Regtest);
+            assert!(network_result.is_ok(), "Address {} not valid for regtest: {:?}", 
+                    addr_str, network_result.err());
+        }
+    }
+    
+    #[test]
+    fn test_generate_payout_outputs_with_admin_fee() {
+        use crate::test_utils::create_valid_regtest_address;
+        
+        let bets = vec![
+            Bet {
+                payout_address: create_valid_regtest_address(1),
+                amount: 100000,
+                txid: "abc123".to_string(),
+                vout: 0,
+            },
+            Bet {
+                payout_address: create_valid_regtest_address(2),
+                amount: 50000,
+                txid: "def456".to_string(),
+                vout: 0,
+            },
+        ];
+        
+        let fees = MarketFees {
+            fee_per_deposit_output: 500,
+            fee_per_withdraw_output: 600,
+            administrator_fee: 5000,
+            administrator_address: Some(create_valid_regtest_address(3)),
+        };
+        
+        let result = generate_payout_outputs(&bets, 300000, Network::Regtest, &fees);
+        assert!(result.is_ok(), "Should generate outputs with admin fee: {:?}", result.err());
+        
+        let outputs = result.unwrap();
+        // Should have 3 outputs: 2 for winners + 1 for admin
+        assert_eq!(outputs.len(), 3, "Should have 3 outputs including admin fee");
+        
+        // Check admin fee output (should be last)
+        let admin_output = &outputs[2];
+        assert_eq!(admin_output.value.to_sat(), 5000, "Admin fee should be 5000 sats");
+        
+        // Verify the admin address matches what we configured
+        use std::str::FromStr;
+        let expected_admin_address = Address::from_str(&create_valid_regtest_address(3))
+            .unwrap()
+            .require_network(Network::Regtest)
+            .unwrap();
+        assert_eq!(admin_output.script_pubkey, expected_admin_address.script_pubkey());
+        
+        // Verify winner payouts are calculated correctly
+        let total_winning = 150000u64;
+        let pool_after_fees = fees.pool_after_fees(300000, 2); // 300000 - (2*600) - 5000 = 293800
+        
+        let expected_amount_1 = (100000 * pool_after_fees) / total_winning;
+        let expected_amount_2 = (50000 * pool_after_fees) / total_winning;
+        
+        assert_eq!(outputs[0].value.to_sat(), expected_amount_1);
+        assert_eq!(outputs[1].value.to_sat(), expected_amount_2);
     }
 }
