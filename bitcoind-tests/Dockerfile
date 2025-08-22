@@ -20,7 +20,10 @@ RUN apt-get update \
 		libtool \
 		autotools-dev \
 		automake \
+		autoconf \
 		pkg-config \
+		cmake \
+		ninja-build \
 		bsdmainutils \
 		python3 \
 		libevent-dev \
@@ -38,13 +41,22 @@ RUN git clone "$BITCOIN_REPO" bitcoin \
 	&& cd bitcoin \
 	&& git fetch --all --tags \
 	&& git checkout "$COMMIT" \
-	&& ./autogen.sh \
-	&& ./configure \
-		--without-gui \
-		--disable-bench \
-		--disable-tests \
-	&& make -j"$(nproc)" \
-	&& make install
+	&& if [ -f ./autogen.sh ]; then \
+		./autogen.sh \
+		&& ./configure \
+			--without-gui \
+			--disable-bench \
+			--disable-tests \
+		&& make -j"$(nproc)" \
+		&& make install; \
+	else \
+		cmake -S . -B build \
+			-DBUILD_TESTS=OFF \
+			-DBUILD_BENCH=OFF \
+			-DBUILD_BITCOIN_QT=OFF \
+		&& cmake --build build -j"$(nproc)" \
+		&& cmake --install build; \
+	fi
 
 # Create runtime user and data directory expected by tests
 RUN useradd -ms /bin/bash bitcoin \
