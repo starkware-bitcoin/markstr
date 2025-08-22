@@ -5,8 +5,6 @@
 //! 1. Payout transactions - distribute winnings to the winning side after oracle settlement
 //! 2. Escape transactions - return funds to all participants after timeout (oracle failure)
 
-use std::str::FromStr;
-
 use anyhow::{Context, Result};
 use bitcoin::{
     absolute::LockTime,
@@ -471,16 +469,20 @@ mod tests {
     
     #[test]
     fn test_regtest_address_parsing() {
-        // Test that we can parse bcrt1 addresses for regtest
+        use crate::test_utils::create_valid_regtest_address;
+        use std::str::FromStr;
+        
+        // Test that we can create and use valid regtest addresses
         let test_addresses = vec![
-            "bcrt1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn",
-            "bcrt1qalqsxa9tlzqq89mvdkqk37c7gvnyadlccudnsg",
-            "bcrt1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8",
+            create_valid_regtest_address(1),
+            create_valid_regtest_address(2),
+            create_valid_regtest_address(3),
         ];
         
-        for addr_str in test_addresses {
+        for addr_str in &test_addresses {
+            // These should parse correctly since they're created by our test utility
             let result = Address::from_str(addr_str);
-            assert!(result.is_ok(), "Failed to parse address {}: {:?}", addr_str, result.err());
+            assert!(result.is_ok(), "Failed to parse generated address {}: {:?}", addr_str, result.err());
             
             let address = result.unwrap();
             let network_result = address.require_network(Network::Regtest);
@@ -491,15 +493,17 @@ mod tests {
     
     #[test]
     fn test_generate_payout_outputs_with_admin_fee() {
+        use crate::test_utils::create_valid_regtest_address;
+        
         let bets = vec![
             Bet {
-                payout_address: "bcrt1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
+                payout_address: create_valid_regtest_address(1),
                 amount: 100000,
                 txid: "abc123".to_string(),
                 vout: 0,
             },
             Bet {
-                payout_address: "bcrt1qalqsxa9tlzqq89mvdkqk37c7gvnyadlccudnsg".to_string(),
+                payout_address: create_valid_regtest_address(2),
                 amount: 50000,
                 txid: "def456".to_string(),
                 vout: 0,
@@ -510,7 +514,7 @@ mod tests {
             fee_per_deposit_output: 500,
             fee_per_withdraw_output: 600,
             administrator_fee: 5000,
-            administrator_address: Some("bcrt1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8".to_string()),
+            administrator_address: Some(create_valid_regtest_address(3)),
         };
         
         let result = generate_payout_outputs(&bets, 300000, Network::Regtest, &fees);
@@ -524,8 +528,9 @@ mod tests {
         let admin_output = &outputs[2];
         assert_eq!(admin_output.value.to_sat(), 5000, "Admin fee should be 5000 sats");
         
-        // Verify the admin address
-        let expected_admin_address = Address::from_str("bcrt1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8")
+        // Verify the admin address matches what we configured
+        use std::str::FromStr;
+        let expected_admin_address = Address::from_str(&create_valid_regtest_address(3))
             .unwrap()
             .require_network(Network::Regtest)
             .unwrap();
