@@ -113,7 +113,6 @@ pub const fn network_to_u8(network: Network) -> u8 {
         Network::Signet => 2,
         Network::Regtest => 3,
         Network::Testnet4 => 4,
-        _ => 5,
     }
 }
 

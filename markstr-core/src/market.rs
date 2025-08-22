@@ -413,7 +413,7 @@ impl PredictionMarket {
         let winning_bets = match self.winning_outcome {
             Some('A') => &self.bets_a,
             Some('B') => &self.bets_b,
-            None => return 0, // Market not settled yet
+            _ => return 0, // Market not settled yet or invalid outcome
         };
         
         let num_winning_outputs = winning_bets.len();

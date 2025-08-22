@@ -22,7 +22,6 @@ use crate::{
     pool::{
         build_script_for_escape, build_script_for_outcome, calculate_ctv_hash_from_transaction,
     },
-    DEFAULT_MARKET_FEE,
 };
 
 /// Transaction type for withdrawal
