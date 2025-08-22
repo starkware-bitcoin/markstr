@@ -628,11 +628,9 @@ impl PredictionMarket {
 #[cfg(test)]
 mod fee_tests {
     use super::*;
-    use crate::test_utils::generate_keypair;
-
     fn create_test_market_with_fees() -> PredictionMarket {
-        let keypair = generate_keypair();
-        let oracle_pubkey = hex::encode(keypair.x_only_public_key().0.serialize());
+        // Use a fixed test oracle public key
+        let oracle_pubkey = "ee96d4b9c5e16f3b11e33bb27fe39ae7a57daa6b24210de5b39237993742cc0a".to_string();
         
         let fees = MarketFees {
             fee_per_deposit_output: 500,
@@ -692,27 +690,27 @@ mod fee_tests {
         
         // Add some bets
         market.place_bet(
-            "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
+            'A',
             100000,
+            "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
             "abc123".to_string(),
             0,
-            'A',
         ).unwrap();
         
         market.place_bet(
-            "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
+            'A',
             50000,
+            "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
             "def456".to_string(),
             0,
-            'A',
         ).unwrap();
         
         market.place_bet(
-            "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
+            'B',
             80000,
+            "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
             "ghi789".to_string(),
             0,
-            'B',
         ).unwrap();
         
         // Total pool: 230000
