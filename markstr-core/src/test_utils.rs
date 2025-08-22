@@ -108,6 +108,7 @@ pub fn create_test_market_with_network(network: Network) -> PredictionMarket {
         settled: false,
         winning_outcome: None,
         withdraw_timeout: 86400, // 1 day
+        fees: crate::market::MarketFees::default(),
     }
 }
 
@@ -145,6 +146,7 @@ pub fn create_empty_test_market() -> PredictionMarket {
         settled: false,
         winning_outcome: None,
         withdraw_timeout: 86400,
+        fees: crate::market::MarketFees::default(),
     }
 }
 
@@ -213,6 +215,7 @@ pub fn create_test_market_with_amounts(
         settled: false,
         winning_outcome: None,
         withdraw_timeout: 86400,
+        fees: crate::market::MarketFees::default(),
     }
 }
 
