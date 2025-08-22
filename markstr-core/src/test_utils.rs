@@ -3,7 +3,7 @@
 //! This module provides shared functionality for testing across all modules,
 //! including market creation, address generation, and other common test setup.
 
-use crate::market::{Bet, PredictionMarket, PredictionOutcome};
+use crate::market::{Bet, MarketFees, PredictionMarket, PredictionOutcome};
 use bitcoin::secp256k1::{Secp256k1, SecretKey};
 use bitcoin::{Address, CompressedPublicKey, Network, PrivateKey};
 
@@ -108,7 +108,7 @@ pub fn create_test_market_with_network(network: Network) -> PredictionMarket {
         settled: false,
         winning_outcome: None,
         withdraw_timeout: 86400, // 1 day
-        fees: crate::market::MarketFees::default(),
+        fees: MarketFees::default(),
     }
 }
 
@@ -146,7 +146,7 @@ pub fn create_empty_test_market() -> PredictionMarket {
         settled: false,
         winning_outcome: None,
         withdraw_timeout: 86400,
-        fees: crate::market::MarketFees::default(),
+        fees: MarketFees::default(),
     }
 }
 
@@ -215,7 +215,7 @@ pub fn create_test_market_with_amounts(
         settled: false,
         winning_outcome: None,
         withdraw_timeout: 86400,
-        fees: crate::market::MarketFees::default(),
+        fees: MarketFees::default(),
     }
 }
 

@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn test_generate_payout_outputs() {
         let market = create_test_market();
-        let result = generate_payout_outputs(&market.bets_a, 300000, Network::Regtest, &market.fees);
+        let result = generate_payout_outputs(&market.bets_a, market.total_amount, Network::Regtest, &market.fees);
 
         assert!(
             result.is_ok(),
@@ -356,7 +356,7 @@ mod tests {
 
         // Check proportional distribution
         let total_winning = 150000u64; // 100k + 50k
-        let pool_after_fees = 300000u64 - DEFAULT_MARKET_FEE;
+        let pool_after_fees = market.fees.pool_after_fees(market.total_amount, 2); // 2 winning outputs
         let expected_amount_1 = (100000 * pool_after_fees) / total_winning;
         let expected_amount_2 = (50000 * pool_after_fees) / total_winning;
 
