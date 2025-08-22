@@ -494,7 +494,7 @@ mod tests {
         };
         
         let result = generate_payout_outputs(&bets, 300000, Network::Regtest, &fees);
-        assert!(result.is_ok(), "Should generate outputs with admin fee");
+        assert!(result.is_ok(), "Should generate outputs with admin fee: {:?}", result.err());
         
         let outputs = result.unwrap();
         // Should have 3 outputs: 2 for winners + 1 for admin
