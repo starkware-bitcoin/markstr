@@ -5,17 +5,17 @@ This component provides end-to-end testing infrastructure for Markstr prediction
 ## Quick Start
 
 ```bash
-# Build Bitcoin Docker image with CSFS support
-cd bitcoind-tests
-make image
+# Pull prebuilt CSFS-enabled Bitcoin Core image from GHCR
+docker pull ghcr.io/AbdelStark/bitcoin-csfs:latest
 
-# Run tests (automatically uses the built image)
-cargo test
+# Retag to the name expected by the tests (optional)
+docker tag ghcr.io/AbdelStark/bitcoin-csfs:latest bitcoin/bitcoin-csfs
 
-# Image will be available as: bitcoin/bitcoin-csfs
+# Run tests (automatically uses the image)
+cargo test -p bitcoind-tests
 ```
 
-**What this does**: Builds a custom Bitcoin Core Docker image from `jamesob/bitcoin.git` with CSFS opcodes enabled, allowing you to test Markstr prediction markets locally with real Bitcoin transactions.
+**What this does**: Uses a custom Bitcoin Core Docker image with CSFS opcodes enabled, allowing you to test Markstr prediction markets locally with real Bitcoin transactions.
 
 ## Overview
 
@@ -27,13 +27,26 @@ The `bitcoind-tests` crate enables:
 
 ## Docker Image
 
-### Building the CSFS-Enabled Bitcoin Image
+### Prebuilt Image
 
-The build process:
-1. Clones `willcl-ark/bitcoin-core-docker` for the Dockerfile
-2. Modifies it to use `jamesob/bitcoin.git` with CSFS patches
-3. Builds Bitcoin Core with CSFS opcodes enabled
-4. Creates a Docker image ready for regtest with CSFS support
+The image is published to GitHub Container Registry (multi-arch: linux/amd64, linux/arm64):
+- `ghcr.io/AbdelStark/bitcoin-csfs:latest`
+- `ghcr.io/AbdelStark/bitcoin-csfs:<commit>` (e.g., `2025-04-csfs`)
+
+You can use it directly, or retag it locally to `bitcoin/bitcoin-csfs` to match the default test harness image name.
+
+### Building Locally (optional)
+
+A `Dockerfile` is provided in this folder if you prefer local builds:
+
+```bash
+cd bitcoind-tests
+# Build from a specific Bitcoin repo/commit (defaults shown)
+docker build \
+  --build-arg BITCOIN_REPO=https://github.com/jamesob/bitcoin.git \
+  --build-arg COMMIT=2025-04-csfs \
+  -t bitcoin/bitcoin-csfs .
+```
 
 ### Why CSFS is Required
 
@@ -48,9 +61,9 @@ Markstr prediction markets use **CheckSigFromStack (CSFS)** opcodes to verify or
 Default build parameters:
 - **Repository**: `https://github.com/jamesob/bitcoin.git`
 - **Branch/Commit**: `2025-04-csfs`
-- **Image Name**: `bitcoin/bitcoin-csfs`
+- **Image Name**: `ghcr.io/AbdelStark/bitcoin-csfs` (retag locally to `bitcoin/bitcoin-csfs` if needed)
 
-Override with environment variables to use different Bitcoin repository or specific commit.
+Override with build arguments to use a different Bitcoin repository or specific commit when building locally.
 
 ## Usage
 
@@ -85,7 +98,7 @@ The `DockerBitcoind` struct manages the Docker container process, RPC endpoint U
 
 - **Docker**: For containerized Bitcoin nodes
 - **Rust**: Compilation and test execution
-- **Network Access**: To download Bitcoin Core source
+- **Network Access**: To download Bitcoin Core source (local builds only)
 
 ### Docker Configuration
 
@@ -116,10 +129,10 @@ Check Docker container status with `docker ps` and `docker logs <container_id>`.
 
 **Permission errors**: Ensure Docker daemon is running and accessible.
 
-**Image build failures**: Verify internet connection for Git clone operations.
+**Image issues**: If the image is missing, either pull from GHCR (recommended) or build locally via the provided `Dockerfile`.
 
 **RPC connection timeouts**: Increase wait times in test setup if running on slow hardware.
 
 ### Clean Up
 
-Remove temporary Docker containers with `docker container prune`, remove the test Bitcoin image with `docker rmi bitcoin/bitcoin-csfs`, and clean build artifacts with `make clean`.
+Remove temporary Docker containers with `docker container prune`, remove the test Bitcoin image with `docker rmi bitcoin/bitcoin-csfs`, and clean build artifacts with `cargo clean`.
