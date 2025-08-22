@@ -18,7 +18,7 @@ use bitcoin::{
 
 use crate::{
     get_tx_version,
-    market::{Bet, PredictionMarket},
+    market::{Bet, MarketFees, PredictionMarket},
     pool::{
         build_script_for_escape, build_script_for_outcome, calculate_ctv_hash_from_transaction,
     },
@@ -52,12 +52,13 @@ pub fn generate_payout_outputs(
     winning_bets: &[Bet],
     pool_size: u64,
     network: Network,
+    fees: &MarketFees,
 ) -> Result<Vec<TxOut>> {
     if winning_bets.is_empty() {
         return Err(anyhow::anyhow!("No winning bets"));
     }
 
-    let pool_after_fees = pool_size.saturating_sub(DEFAULT_MARKET_FEE);
+    let pool_after_fees = fees.pool_after_fees(pool_size, winning_bets.len());
     let winning_side_total = winning_bets.iter().map(|bet| bet.amount).sum::<u64>();
 
     if winning_side_total == 0 {
@@ -83,6 +84,26 @@ pub fn generate_payout_outputs(
             // dust threshold
             outputs.push(TxOut {
                 value: Amount::from_sat(amount),
+                script_pubkey: address.script_pubkey(),
+            });
+        }
+    }
+    
+    // Add administrator fee output if configured
+    if let Some(admin_address) = &fees.administrator_address {
+        if fees.administrator_fee > 0 {
+            let address = Address::from_str(admin_address)
+                .with_context(|| format!("Failed to parse administrator address: {}", admin_address))?
+                .require_network(network)
+                .with_context(|| {
+                    format!(
+                        "Administrator address {} is not valid for network {:?}",
+                        admin_address, network
+                    )
+                })?;
+            
+            outputs.push(TxOut {
+                value: Amount::from_sat(fees.administrator_fee),
                 script_pubkey: address.script_pubkey(),
             });
         }
@@ -140,6 +161,7 @@ pub fn build_withdraw_transaction(params: WithdrawParams) -> Result<Transaction>
                 winning_bets,
                 params.market.total_amount,
                 params.market.network,
+                &params.market.fees,
             )?
         }
         WithdrawType::Escape => {
@@ -319,7 +341,7 @@ mod tests {
     #[test]
     fn test_generate_payout_outputs() {
         let market = create_test_market();
-        let result = generate_payout_outputs(&market.bets_a, 300000, Network::Regtest);
+        let result = generate_payout_outputs(&market.bets_a, 300000, Network::Regtest, &market.fees);
 
         assert!(
             result.is_ok(),
@@ -443,7 +465,61 @@ mod tests {
     #[test]
     fn test_generate_payout_outputs_empty_bets() {
         let empty_bets = vec![];
-        let result = generate_payout_outputs(&empty_bets, 300000, Network::Regtest);
+        let fees = MarketFees::default();
+        let result = generate_payout_outputs(&empty_bets, 300000, Network::Regtest, &fees);
         assert!(result.is_err(), "Should fail with empty bets");
+    }
+    
+    #[test]
+    fn test_generate_payout_outputs_with_admin_fee() {
+        let bets = vec![
+            Bet {
+                payout_address: "bcrt1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
+                amount: 100000,
+                txid: "abc123".to_string(),
+                vout: 0,
+            },
+            Bet {
+                payout_address: "bcrt1qalqsxa9tlzqq89mvdkqk37c7gvnyadlccudnsg".to_string(),
+                amount: 50000,
+                txid: "def456".to_string(),
+                vout: 0,
+            },
+        ];
+        
+        let fees = MarketFees {
+            fee_per_deposit_output: 500,
+            fee_per_withdraw_output: 600,
+            administrator_fee: 5000,
+            administrator_address: Some("bcrt1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8".to_string()),
+        };
+        
+        let result = generate_payout_outputs(&bets, 300000, Network::Regtest, &fees);
+        assert!(result.is_ok(), "Should generate outputs with admin fee");
+        
+        let outputs = result.unwrap();
+        // Should have 3 outputs: 2 for winners + 1 for admin
+        assert_eq!(outputs.len(), 3, "Should have 3 outputs including admin fee");
+        
+        // Check admin fee output (should be last)
+        let admin_output = &outputs[2];
+        assert_eq!(admin_output.value.to_sat(), 5000, "Admin fee should be 5000 sats");
+        
+        // Verify the admin address
+        let expected_admin_address = Address::from_str("bcrt1qpjult34k9spjfym8hss2jrwjgf0xjf40ze0pp8")
+            .unwrap()
+            .require_network(Network::Regtest)
+            .unwrap();
+        assert_eq!(admin_output.script_pubkey, expected_admin_address.script_pubkey());
+        
+        // Verify winner payouts are calculated correctly
+        let total_winning = 150000u64;
+        let pool_after_fees = fees.pool_after_fees(300000, 2); // 300000 - (2*600) - 5000 = 293800
+        
+        let expected_amount_1 = (100000 * pool_after_fees) / total_winning;
+        let expected_amount_2 = (50000 * pool_after_fees) / total_winning;
+        
+        assert_eq!(outputs[0].value.to_sat(), expected_amount_1);
+        assert_eq!(outputs[1].value.to_sat(), expected_amount_2);
     }
 }
