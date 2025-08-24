@@ -170,23 +170,15 @@ impl MarketstrWallet {
                     .map(|tx| ((*tx.tx_node.tx).clone(), tx.chain_position))
                     .collect::<Vec<_>>()
             });
-        for tx in &txs {
-            let Ok(Some(tx_info)) = BTC_ESPLORA_CLIENT.get_tx_info(&tx.0.compute_txid()).await
-            else {
-                web_sys::console::error_1(
-                    &format!("Failed to get transaction info for {}", tx.0.compute_txid()).into(),
-                );
-                continue;
-            };
-            web_sys::console::log_1(
-                &format!(
-                    "Transaction {:?}: {:?} confirmations",
-                    tx.0.compute_txid(),
-                    tx_info.confirmation_time(),
-                )
-                .into(),
-            );
-        }
+        // for tx in &txs {
+        //     let Ok(Some(tx_info)) = BTC_ESPLORA_CLIENT.get_tx_info(&tx.0.compute_txid()).await
+        //     else {
+        //         web_sys::console::error_1(
+        //             &format!("Failed to get transaction info for {}", tx.0.compute_txid()).into(),
+        //         );
+        //         continue;
+        //     };
+        // }
         txs
     }
     pub async fn send_coins(

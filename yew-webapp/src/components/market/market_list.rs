@@ -1,7 +1,5 @@
-use std::collections::HashMap;
 use web_sys::js_sys::Date;
 use yew::prelude::*;
-
 
 #[function_component(BettingPage)]
 pub fn betting_page() -> Html {
@@ -30,7 +28,6 @@ pub struct MarketListProps {
 pub fn market_list(props: &MarketListProps) -> Html {
     let markets = crate::context::use_market_list();
     let filtered_markets = use_state(Vec::<markstr_core::PredictionMarket>::new);
-    web_sys::console::log_1(&format!("Markets: {markets:?}").into());
 
     // Effect to filter markets
     {
@@ -39,21 +36,21 @@ pub fn market_list(props: &MarketListProps) -> Html {
         let limit = props.limit;
 
         use_effect_with(markets.clone(), move |markets| {
-
-            let mut filtered = if let Some(status) = status {
+            let now = Date::now();
+            let mut filtered = {
                 markets
                     .iter()
-                    .filter(|market| market.settled == status)
+                    .filter(|market| status.is_none() || Some(market.settled) == status)
+                    .filter(|market| {
+                        market.settlement_timestamp > now as u64
+                    })
                     .cloned()
-                    .collect()
-            } else {
-                markets.clone()
+                    .collect::<Vec<markstr_core::PredictionMarket>>()
             };
 
             if let Some(limit_val) = limit {
                 filtered.truncate(limit_val);
             }
-            web_sys::console::log_1(&format!("Filtered markets: {filtered:?}").into());
 
             filtered_markets.set(filtered);
         });
@@ -110,28 +107,28 @@ pub fn market_list(props: &MarketListProps) -> Html {
         }
     };
 
-    let calculate_odds = |market: &markstr_core::PredictionMarket| -> HashMap<String, String> {
-        let mut odds = HashMap::new();
+    // let calculate_odds = |market: &markstr_core::PredictionMarket| -> HashMap<String, String> {
+    //     let mut odds = HashMap::new();
 
-        // for outcome in &market.outcomes {
-        //     let outcome_amount: f64 = market
-        //         .bets
-        //         .iter()
-        //         .filter(|bet| bet.outcome == *outcome)
-        //         .map(|bet| bet.amount)
-        //         .sum();
+    //     // for outcome in &market.outcomes {
+    //     //     let outcome_amount: f64 = market
+    //     //         .bets
+    //     //         .iter()
+    //     //         .filter(|bet| bet.outcome == *outcome)
+    //     //         .map(|bet| bet.amount)
+    //     //         .sum();
 
-        //     let percentage = if market.total_pool > 0.0 {
-        //         (outcome_amount / market.total_pool * 100.0)
-        //     } else {
-        //         0.0
-        //     };
+    //     //     let percentage = if market.total_pool > 0.0 {
+    //     //         (outcome_amount / market.total_pool * 100.0)
+    //     //     } else {
+    //     //         0.0
+    //     //     };
 
-        //     odds.insert(outcome.clone(), format!("{:.1}", percentage));
-        // }
+    //     //     odds.insert(outcome.clone(), format!("{:.1}", percentage));
+    //     // }
 
-        odds
-    };
+    //     odds
+    // };
 
     // Render empty state
     if filtered_markets.is_empty() {
@@ -158,8 +155,8 @@ pub fn market_list(props: &MarketListProps) -> Html {
         <div class="space-y-4">
             {
                 filtered_markets.iter().map(|market| {
-                    let odds = calculate_odds(market);
-                    let market_id = market.market_id.clone();
+                    // let odds = calculate_odds(market);
+                    // let market_id = market.market_id.clone();
                     let bets = [market.bets_a.clone(), market.bets_b.clone()].concat();
 
                     html! {
@@ -259,4 +256,3 @@ pub fn market_list(props: &MarketListProps) -> Html {
         </div>
     }
 }
-

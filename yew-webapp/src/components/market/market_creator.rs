@@ -4,7 +4,8 @@ use yew::prelude::*;
 #[derive(Clone, PartialEq, Debug)]
 pub struct FormData {
     pub question: String,
-    pub outcomes: Vec<String>,
+    pub outcome_a: String,
+    pub outcome_b: String,
     pub settlement_time: String,
     pub description: String,
 }
@@ -13,7 +14,8 @@ impl Default for FormData {
     fn default() -> Self {
         Self {
             question: String::new(),
-            outcomes: vec!["Yes".to_string(), "No".to_string()],
+            outcome_a: "Yes".to_string(),
+            outcome_b: "No".to_string(),
             settlement_time: String::new(),
             description: String::new(),
         }
@@ -86,34 +88,14 @@ pub fn market_creator() -> Html {
 
     let handle_outcome_change = {
         let form_data = form_data.clone();
-        Callback::from(move |(index, value): (usize, String)| {
+        Callback::from(move |(outcome, value): (char, String)| {
             let mut new_form_data = (*form_data).clone();
-            if index < new_form_data.outcomes.len() {
-                new_form_data.outcomes[index] = value;
-                form_data.set(new_form_data);
+            if outcome == 'A' {
+                new_form_data.outcome_a = value;
+            } else {
+                new_form_data.outcome_b = value;
             }
-        })
-    };
-
-    let add_outcome = {
-        let form_data = form_data.clone();
-        Callback::from(move |_| {
-            let mut new_form_data = (*form_data).clone();
-            if new_form_data.outcomes.len() < 5 {
-                new_form_data.outcomes.push(String::new());
-                form_data.set(new_form_data);
-            }
-        })
-    };
-
-    let remove_outcome = {
-        let form_data = form_data.clone();
-        Callback::from(move |index: usize| {
-            let mut new_form_data = (*form_data).clone();
-            if new_form_data.outcomes.len() > 2 {
-                new_form_data.outcomes.remove(index);
-                form_data.set(new_form_data);
-            }
+            form_data.set(new_form_data);
         })
     };
 
@@ -123,7 +105,6 @@ pub fn market_creator() -> Html {
         Callback::from(move |_| {
             let mut new_errors = FormErrors::default();
             let data = &*form_data;
-            web_sys::console::log_1(&format!("{:?}", data).into());
 
             if data.question.trim().is_empty() {
                 new_errors.question = Some("Question is required".to_string());
@@ -140,12 +121,8 @@ pub fn market_creator() -> Html {
                 // }
             }
 
-            if data.outcomes.iter().any(|o| o.trim().is_empty()) {
-                new_errors.outcomes = Some("All outcomes must be filled".to_string());
-            }
-
-            if data.outcomes.len() < 2 {
-                new_errors.outcomes = Some("At least 2 outcomes are required".to_string());
+            if data.outcome_a.trim().is_empty() || data.outcome_b.trim().is_empty() {
+                new_errors.outcomes = Some("Outcomes must be filled".to_string());
             }
 
             let is_valid = new_errors.question.is_none()
@@ -176,17 +153,11 @@ pub fn market_creator() -> Html {
 
             // Implement market creation logic here
             let settlement_time = web_sys::js_sys::Date::parse(&form_data.settlement_time);
-            let outcomes: Vec<String> = form_data
-                .outcomes
-                .iter()
-                .filter(|o| !o.trim().is_empty())
-                .cloned()
-                .collect();
             // we build a market with two outcomes
             let Ok(market) = markstr_core::PredictionMarket::new(
                 form_data.question.clone(),
-                outcomes[0].clone(),
-                outcomes[1].clone(),
+                form_data.outcome_a.clone(),
+                form_data.outcome_b.clone(),
                 nostr_key.public_key(),
                 settlement_time.trunc() as u64,
             ) else {
@@ -379,65 +350,36 @@ pub fn market_creator() -> Html {
                         <label class="block text-lg font-bold mb-2 font-['Space_Grotesk']">
                             {"Possible Outcomes *"}
                         </label>
-                        {
-                            form_data.outcomes.iter().enumerate().map(|(index, outcome)| {
-                                let handle_outcome_change = handle_outcome_change.clone();
-                                let remove_outcome = remove_outcome.clone();
-                                let can_remove = form_data.outcomes.len() > 2;
-
-                                html! {
-                                    <div key={index} class="flex items-center mb-2">
-                                        <input
-                                            type="text"
-                                            value={outcome.clone()}
-                                            onchange={
-                                                let handle_outcome_change = handle_outcome_change.clone();
-                                                Callback::from(move |e: Event| {
-                                                    let input: HtmlInputElement = e.target_unchecked_into();
-                                                    handle_outcome_change.emit((index, input.value()));
-                                                })
-                                            }
-                                            placeholder={format!("Outcome {}", index + 1)}
-                                            class="flex-1 p-3 border-2 border-black font-mono text-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
-                                            maxlength="50"
-                                        />
-                                        {
-                                            if can_remove {
-                                                html! {
-                                                    <button
-                                                        type="button"
-                                                        onclick={
-                                                            let remove_outcome = remove_outcome.clone();
-                                                            Callback::from(move |_| remove_outcome.emit(index))
-                                                        }
-                                                        class="ml-2 bg-red-400 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-3 py-3 font-bold hover:transform hover:translate-x-1 hover:translate-y-1 transition-all duration-200"
-                                                    >
-                                                        {"❌"}
-                                                    </button>
-                                                }
-                                            } else {
-                                                html! {}
-                                            }
-                                        }
-                                    </div>
+                        <div class="flex items-center mb-2">
+                            <input
+                                type="text"
+                                value={form_data.outcome_a.clone()}
+                                onchange={
+                                    let handle_outcome_change = handle_outcome_change.clone();
+                                    Callback::from(move |e: Event| {
+                                        let input: HtmlInputElement = e.target_unchecked_into();
+                                        handle_outcome_change.emit(('A', input.value()));
+                                    })
                                 }
-                            }).collect::<Html>()
-                        }
-                        {
-                            if form_data.outcomes.len() < 5 {
-                                html! {
-                                    <button
-                                        type="button"
-                                        onclick={add_outcome}
-                                        class="bg-green-400 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] px-4 py-2 font-bold hover:transform hover:translate-x-1 hover:translate-y-1 transition-all duration-200"
-                                    >
-                                        {"+ ADD OUTCOME"}
-                                    </button>
+                                placeholder="Outcome A"
+                                class="flex-1 p-3 border-2 border-black font-mono text-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                maxlength="50"
+                            />
+                            <input
+                                type="text"
+                                value={form_data.outcome_b.clone()}
+                                onchange={
+                                    let handle_outcome_change = handle_outcome_change.clone();
+                                    Callback::from(move |e: Event| {
+                                        let input: HtmlInputElement = e.target_unchecked_into();
+                                        handle_outcome_change.emit(('B', input.value()));
+                                    })
                                 }
-                            } else {
-                                html! {}
-                            }
-                        }
+                                placeholder="Outcome B"
+                                class="flex-1 p-3 border-2 border-black font-mono text-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+                                maxlength="50"
+                            />
+                        </div>
                         {
                             if let Some(error) = &errors.outcomes {
                                 html! { <p class="text-red-600 text-sm mt-1">{error}</p> }
@@ -486,19 +428,25 @@ pub fn market_creator() -> Html {
                                     }
                                 }
                             </div>
-                            <div>
+                            <div class="flex items-center">
                                 <strong>{"Outcomes: "}</strong>
-                                // {
-                                //     let outcomes: Vec<&str> = form_data.outcomes.iter()
-                                //         .filter(|o| !o.trim().is_empty())
-                                //         .map(|s| s.as_str())
-                                //         .collect();
-                                //     if outcomes.is_empty() {
-                                //         "No outcomes set".to_string()
-                                //     } else {
-                                //         outcomes.join(", ")
-                                //     }
-                                // }
+                                <span class="ml-2">
+                                    {
+                                        if form_data.outcome_a.is_empty() {
+                                            "No outcomes set"
+                                        } else {
+                                            &form_data.outcome_a
+                                        }
+                                    }
+                                    {{'/'.to_string()}}
+                                    {
+                                        if form_data.outcome_b.is_empty() {
+                                            "No outcomes set"
+                                        } else {
+                                            &form_data.outcome_b
+                                        }
+                                    }
+                                </span>
                             </div>
                             <div>
                                 <strong>{"Settlement: "}</strong>

@@ -8,12 +8,6 @@ pub struct PredictionMarket {
     outcomes: Vec<nostr_minions::nostro2::NostrNote>,
 }
 impl PredictionMarket {
-    pub fn loaded(&self) -> bool {
-        self.loaded
-    }
-    pub fn synced(&self) -> bool {
-        self.synced
-    }
     pub fn markets(&self) -> Vec<markstr_core::PredictionMarket> {
         let markets = self
             .markets
@@ -21,7 +15,6 @@ impl PredictionMarket {
             .filter_map(|market| {
                 // Find the outcome Ids in the market note
                 let new_outcomes = market.tags.0.iter().find_map(|tag| {
-                    web_sys::console::log_1(&format!("Tag: {tag:?}").into());
                     let tag_type = tag.first()?;
                     if tag_type != "outcomes" {
                         return None;
@@ -41,11 +34,9 @@ impl PredictionMarket {
                             outcome.tags.find_tags("outcome").first()?.chars().next()?,
                         )
                         .ok()?;
-                        web_sys::console::log_1(&format!("Outcome A: {outcome:?}").into());
                         Some(outcome)
                     })
                 })??;
-                web_sys::console::log_1(&format!("Outcome A: {outcome_a:?}").into());
                 let outcome_b = self.outcomes.iter().find_map(|outcome| {
                     (outcome.id.as_ref() == Some(new_outcomes.1)).then(|| {
                         let outcome = markstr_core::PredictionOutcome::new(
@@ -55,11 +46,9 @@ impl PredictionMarket {
                             outcome.tags.find_tags("outcome").first()?.chars().next()?,
                         )
                         .ok()?;
-                        web_sys::console::log_1(&format!("Outcome B: {outcome:?}").into());
                         Some(outcome)
                     })
                 })??;
-                web_sys::console::log_1(&format!("Outcome B: {outcome_b:?}").into());
                 // Rebuild the market
                 let market = markstr_core::PredictionMarket::new(
                     market.content.clone(),
@@ -68,7 +57,6 @@ impl PredictionMarket {
                     market.pubkey.clone(),
                     market.created_at as u64,
                 );
-                web_sys::console::log_1(&format!("Market: {market:?}").into());
                 let market = market.ok()?;
                 Some(market)
             })
@@ -89,24 +77,18 @@ impl Reducible for PredictionMarket {
 
     fn reduce(self: std::rc::Rc<Self>, action: Self::Action) -> std::rc::Rc<Self> {
         match action {
-            PredictionMarketAction::Loaded => {
-                web_sys::console::log_1(&"Wallet loaded".into());
-                std::rc::Rc::new(Self {
-                    loaded: true,
-                    synced: self.synced,
-                    markets: self.markets.clone(),
-                    outcomes: self.outcomes.clone(),
-                })
-            }
-            PredictionMarketAction::Synced => {
-                web_sys::console::log_1(&"Wallet synced".into());
-                std::rc::Rc::new(Self {
-                    loaded: self.loaded,
-                    synced: true,
-                    markets: self.markets.clone(),
-                    outcomes: self.outcomes.clone(),
-                })
-            }
+            PredictionMarketAction::Loaded => std::rc::Rc::new(Self {
+                loaded: true,
+                synced: self.synced,
+                markets: self.markets.clone(),
+                outcomes: self.outcomes.clone(),
+            }),
+            PredictionMarketAction::Synced => std::rc::Rc::new(Self {
+                loaded: self.loaded,
+                synced: true,
+                markets: self.markets.clone(),
+                outcomes: self.outcomes.clone(),
+            }),
             PredictionMarketAction::NewMarket(market) => {
                 let mut markets = self.markets.clone();
                 markets.push(market);
@@ -142,7 +124,6 @@ pub fn market_provider(props: &yew::html::ChildrenProps) -> HtmlResult {
         outcomes: Vec::new(),
     });
     let relay_ctx = nostr_minions::relay_pool::use_nostr_relay_pool();
-    let nostr_id = nostr_minions::key_manager::use_nostr_key();
 
     let sub_id = use_state(|| None);
 
@@ -185,7 +166,7 @@ pub fn market_provider(props: &yew::html::ChildrenProps) -> HtmlResult {
                 .content
                 .parse::<nostr_minions::nostro2::NostrNote>()
             else {
-                web_sys::console::log_1(&format!("Failed to parse note: {last_note:?}").into());
+                web_sys::console::error_1(&format!("Failed to parse note: {last_note:?}").into());
                 return;
             };
             // Market events are tagged with "outcomes"
