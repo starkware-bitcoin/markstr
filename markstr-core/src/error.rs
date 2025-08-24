@@ -63,7 +63,7 @@ pub enum MarketError {
     /// Network errors
     #[error("Network error: {0}")]
     Network(String),
-
+    
     /// Outcome validation errors
     #[error("Invalid outcome: {0}")]
     InvalidOutcome(String),
@@ -84,3 +84,4 @@ impl From<String> for MarketError {
         Self::Other(msg)
     }
 }
+

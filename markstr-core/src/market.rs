@@ -17,13 +17,13 @@ use serde::{Deserialize, Serialize};
 pub struct MarketFees {
     /// Fee per output for the deposit transaction (in satoshis)
     pub fee_per_deposit_output: u64,
-    
+
     /// Fee per output for the withdraw/payout transaction (in satoshis)
     pub fee_per_withdraw_output: u64,
-    
+
     /// Administrator fee - paid as an extra output in payout transactions (in satoshis)
     pub administrator_fee: u64,
-    
+
     /// Administrator address to receive the fee (optional, if None no admin fee is charged)
     pub administrator_address: Option<String>,
 }
@@ -44,7 +44,7 @@ impl MarketFees {
     pub fn total_deposit_fees(&self, num_inputs: usize) -> u64 {
         self.fee_per_deposit_output * num_inputs as u64
     }
-    
+
     /// Calculate total fees for a payout transaction with given number of outputs
     pub fn total_payout_fees(&self, num_outputs: usize) -> u64 {
         let withdraw_fees = self.fee_per_withdraw_output * num_outputs as u64;
@@ -54,7 +54,7 @@ impl MarketFees {
             withdraw_fees
         }
     }
-    
+
     /// Calculate pool amount after all fees are deducted
     pub fn pool_after_fees(&self, pool_size: u64, num_winning_outputs: usize) -> u64 {
         pool_size.saturating_sub(self.total_payout_fees(num_winning_outputs))
@@ -166,7 +166,7 @@ pub struct PredictionMarket {
 
     /// Timeout for withdrawals after settlement (in case of oracle failure)
     pub withdraw_timeout: u32,
-    
+
     /// Fee configuration for the market
     pub fees: MarketFees,
 }
@@ -259,7 +259,7 @@ impl PredictionMarket {
         XOnlyPublicKey::from_slice(&nums_bytes)
             .map_err(|e| MarketError::InvalidAddress(format!("Failed to create NUMS point: {e}")))
     }
-    
+
     /// Creates a new prediction market with custom fee configuration.
     ///
     /// # Arguments
@@ -280,7 +280,13 @@ impl PredictionMarket {
         settlement_timestamp: u64,
         fees: MarketFees,
     ) -> Result<Self> {
-        let mut market = Self::new(question, outcome_a, outcome_b, oracle_pubkey, settlement_timestamp)?;
+        let mut market = Self::new(
+            question,
+            outcome_a,
+            outcome_b,
+            oracle_pubkey,
+            settlement_timestamp,
+        )?;
         market.fees = fees;
         Ok(market)
     }
@@ -415,12 +421,14 @@ impl PredictionMarket {
             Some('B') => &self.bets_b,
             _ => return 0, // Market not settled yet or invalid outcome
         };
-        
+
         let num_winning_outputs = winning_bets.len();
 
         // Winner's share = (their_bet / total_winning_bets) * total_pool
         // Subtract fees from total pool
-        let pool_after_fees = self.fees.pool_after_fees(self.total_amount, num_winning_outputs);
+        let pool_after_fees = self
+            .fees
+            .pool_after_fees(self.total_amount, num_winning_outputs);
         (bet_amount * pool_after_fees) / winning_side_total
     }
 
@@ -630,15 +638,16 @@ mod fee_tests {
     use super::*;
     fn create_test_market_with_fees() -> PredictionMarket {
         // Use a fixed test oracle public key
-        let oracle_pubkey = "ee96d4b9c5e16f3b11e33bb27fe39ae7a57daa6b24210de5b39237993742cc0a".to_string();
-        
+        let oracle_pubkey =
+            "ee96d4b9c5e16f3b11e33bb27fe39ae7a57daa6b24210de5b39237993742cc0a".to_string();
+
         let fees = MarketFees {
             fee_per_deposit_output: 500,
             fee_per_withdraw_output: 600,
             administrator_fee: 2000,
             administrator_address: Some("tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string()),
         };
-        
+
         PredictionMarket::new_with_fees(
             "Test market with custom fees".to_string(),
             "Yes".to_string(),
@@ -646,7 +655,8 @@ mod fee_tests {
             oracle_pubkey,
             1735689600,
             fees,
-        ).unwrap()
+        )
+        .unwrap()
     }
 
     #[test]
@@ -657,19 +667,19 @@ mod fee_tests {
             administrator_fee: 2000,
             administrator_address: Some("tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string()),
         };
-        
+
         // Test deposit fees
         assert_eq!(fees.total_deposit_fees(1), 500);
         assert_eq!(fees.total_deposit_fees(5), 2500);
-        
+
         // Test payout fees (with admin fee)
         assert_eq!(fees.total_payout_fees(1), 600 + 2000);
         assert_eq!(fees.total_payout_fees(5), 3000 + 2000);
-        
+
         // Test pool after fees
         assert_eq!(fees.pool_after_fees(100000, 5), 100000 - 5000);
     }
-    
+
     #[test]
     fn test_market_fees_no_admin() {
         let fees = MarketFees {
@@ -678,68 +688,74 @@ mod fee_tests {
             administrator_fee: 2000,
             administrator_address: None, // No admin address
         };
-        
+
         // Test payout fees (without admin fee since no address)
         assert_eq!(fees.total_payout_fees(1), 600);
         assert_eq!(fees.total_payout_fees(5), 3000);
     }
-    
+
     #[test]
     fn test_calculate_payout_with_custom_fees() {
         let mut market = create_test_market_with_fees();
-        
+
         // Add some bets
-        market.place_bet(
-            'A',
-            100000,
-            "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
-            "abc123".to_string(),
-            0,
-        ).unwrap();
-        
-        market.place_bet(
-            'A',
-            50000,
-            "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
-            "def456".to_string(),
-            0,
-        ).unwrap();
-        
-        market.place_bet(
-            'B',
-            80000,
-            "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
-            "ghi789".to_string(),
-            0,
-        ).unwrap();
-        
+        market
+            .place_bet(
+                'A',
+                100000,
+                "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
+                "abc123".to_string(),
+                0,
+            )
+            .unwrap();
+
+        market
+            .place_bet(
+                'A',
+                50000,
+                "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
+                "def456".to_string(),
+                0,
+            )
+            .unwrap();
+
+        market
+            .place_bet(
+                'B',
+                80000,
+                "tb1q0ywfmmk5d0es7chp5xqnw7x5l6nlanvnqcgnzn".to_string(),
+                "ghi789".to_string(),
+                0,
+            )
+            .unwrap();
+
         // Total pool: 230000
         market.total_amount = 230000;
         market.winning_outcome = Some('A');
-        
+
         // Calculate payout for a winning bet
         let payout = market.calculate_payout(100000, 150000);
-        
+
         // Expected: pool_after_fees = 230000 - (2 outputs * 600) - 2000 = 226800
         // Winner's share = (100000 / 150000) * 226800 = 151200
         assert_eq!(payout, 151200);
     }
-    
+
     #[test]
     fn test_deposit_amount_after_fees() {
         let market = create_test_market_with_fees();
-        
+
         // Test that deposit amount is reduced by fee
         let bet_amount = 10000;
         let amount_after_fee = bet_amount - market.fees.fee_per_deposit_output;
-        
+
         assert_eq!(amount_after_fee, 9500);
     }
-    
+
     #[test]
     fn test_default_fees() {
         let fees = MarketFees::default();
-        
+
         assert_eq!(fees.fee_per_deposit_output, DEFAULT_MARKET_FEE);
         assert_eq!(fees.fee_per_withdraw_output, DEFAULT_MARKET_FEE);
         assert_eq!(fees.administrator_fee, 0);

@@ -11,9 +11,13 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+markstr-core = { path = "../markstr-core" }
+
+# JSON 
 serde.workspace = true
 serde_json.workspace = true
 
+## Browser
 idb = { version = "0.6.4" }
 web-sys.workspace = true
 
@@ -22,9 +26,7 @@ yew = { version = "0.21.0", features = ["csr"] }
 yew-router = "0.18.0"
 
 # Nostr 
-nostr-minions = "0.1.18"
-
-# Wallet
+nostr-minions = "0.1.19"
 bitcoin.workspace = true
 bdk_wallet = { version = "1.2.0", features = ["keys-bip39"] }
 bdk_esplora = { version = "0.20.1", features = ["async-https-rustls", "tokio"], default-features = false }

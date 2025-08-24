@@ -23,9 +23,6 @@ pub enum Route {
     NotFound,
 }
 
-use yew::prelude::*;
-use yew_router::prelude::*;
-
 #[derive(Properties, PartialEq)]
 pub struct LayoutProps {
     #[prop_or_default]
@@ -38,18 +35,18 @@ pub fn layout(props: &LayoutProps) -> Html {
 
     let nav_items = vec![
         NavItem::new(Route::Dashboard, "Dashboard", "📊"),
-        NavItem::new(Route::Roles, "Roles", "👥"),
+        // NavItem::new(Route::Roles, "Roles", "👥"),
         NavItem::oracle(Route::CreateMarket, "Create Market", "🏦"),
         NavItem::new(Route::Betting, "Betting", "🎯"),
-        NavItem::oracle(Route::Oracle, "Oracle", "🔮"),
-        NavItem::new(Route::Payouts, "Payouts", "💰"),
+        // NavItem::oracle(Route::Oracle, "Oracle", "🔮"),
+        // NavItem::new(Route::Payouts, "Payouts", "💰"),
         NavItem::new(Route::Transactions, "Transactions", "📝"),
     ];
 
     let is_active = |route: &Route| route == &location;
 
     html! {
-        <div class="min-h-screen bg-gray-50">
+        <div class="h-screen min-h-screen bg-gray-50 overflow-hidden">
             // Header
             <header class="bg-white border-b-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
                 <div class="container mx-auto px-4 py-4">
@@ -73,11 +70,11 @@ pub fn layout(props: &LayoutProps) -> Html {
             </header>
 
             // Main layout
-            <div class="flex">
+            <div class="flex h-full">
                 // Sidebar
                 <aside class="w-64 bg-white border-r-4 border-black min-h-screen">
                     <nav class="p-4">
-                        <ul class="space-y-2">
+                        <ul class="space-y-5">
                             {
                                 for nav_items
                                     .into_iter()
@@ -127,7 +124,7 @@ pub fn layout(props: &LayoutProps) -> Html {
                 </aside>
 
                 // Main Content
-                <main class="flex-1 p-6">
+                <main class="flex-1 p-6 overflow-y-auto pb-28">
                     { for props.children.iter() }
                 </main>
             </div>

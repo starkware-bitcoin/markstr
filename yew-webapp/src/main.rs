@@ -37,13 +37,15 @@ fn app_content() -> Html {
         <nostr_minions::relay_pool::NostrRelayPoolProvider {relays}>
             <nostr_minions::key_manager::NostrIdProvider>
             <context::WalletProvider>
+            <context::MarketProvider>
             <components::Layout>
                 <KeyCheck>
-                <WalletLoad>
-                <components::Dashboard />
-                </WalletLoad>
+                    <WalletLoad>
+                        <Router />
+                    </WalletLoad>
                 </KeyCheck>
             </components::Layout>
+            </context::MarketProvider>
             </context::WalletProvider>
             </nostr_minions::key_manager::NostrIdProvider>
         </nostr_minions::relay_pool::NostrRelayPoolProvider>
@@ -56,7 +58,8 @@ fn app_content() -> Html {
 fn key_check(props: &yew::html::ChildrenProps) -> Html {
     let key_ctx = use_context::<nostr_minions::key_manager::NostrIdStore>()
         .expect("No Nostr key context found");
-    use_memo((), |()| {
+    use_memo(key_ctx, move |key_ctx| {
+        let key_ctx = key_ctx.clone();
         yew::platform::spawn_local(async move {
             if key_ctx.get_nostr_key().await.is_none() && key_ctx.loaded() {
                 let Ok(new_id) =
@@ -117,5 +120,31 @@ fn wallet_load(props: &yew::html::ChildrenProps) -> HtmlResult {
         false => Ok(html! {
             <components::LoadingSpinner />
         }),
+    }
+}
+
+#[function_component(Router)]
+fn router() -> Html {
+    html! {
+        <yew_router::Switch<components::Route> render = { move |switch: components::Route| {
+            match switch {
+                components::Route::Dashboard => html! {
+                    <components::Dashboard />
+                },
+                components::Route::CreateMarket => html! {
+                    <components::MarketCreator />
+                },
+                components::Route::Betting  => html! {
+                    <components::BettingPage />
+                },
+                _ => html! {
+                    <div class="flex flex-1 items-center justify-center">
+                        <div class="text-3xl font-bold text-black font-['Space_Grotesk']">{ "404" }</div>
+                        <div class="text-xl font-bold text-black font-['Space_Grotesk']">{ "Page not found" }</div>
+                    </div>
+                }
+            }
+        }}
+        />
     }
 }

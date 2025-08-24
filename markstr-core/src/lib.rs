@@ -47,7 +47,7 @@ pub mod withdraw;
 
 use bitcoin::Network;
 pub use error::{MarketError, Result};
-pub use market::{Bet, MarketFees, PredictionMarket};
+pub use market::{Bet, MarketFees, PredictionMarket, PredictionOutcome};
 pub use utils::*;
 
 /// Default fee for market transactions (1000 satoshis)
