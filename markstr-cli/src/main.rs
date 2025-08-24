@@ -5,7 +5,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::*;
-use markstr_core::{PredictionMarket, utils::*};
+use markstr_core::{utils::*, PredictionMarket};
 
 #[derive(Parser)]
 #[command(name = "markstr")]
@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
             settlement,
         } => {
             println!("{}", "Creating new prediction market...".green().bold());
-            
+
             let market = PredictionMarket::new(
                 question.clone(),
                 outcome_a.clone(),
@@ -88,7 +88,7 @@ async fn main() -> Result<()> {
             )?;
 
             let market_address = market.get_market_address()?;
-            
+
             println!();
             println!("{}", "Market Created Successfully!".green().bold());
             println!("{}", "═".repeat(50).bright_black());
@@ -97,40 +97,52 @@ async fn main() -> Result<()> {
             println!("{}: {}", "Outcome A".yellow().bold(), outcome_a);
             println!("{}: {}", "Outcome B".yellow().bold(), outcome_b);
             println!("{}: {}", "Oracle PubKey".yellow().bold(), oracle);
-            println!("{}: {}", "Settlement Time".yellow().bold(), format_timestamp(settlement));
+            println!(
+                "{}: {}",
+                "Settlement Time".yellow().bold(),
+                format_timestamp(settlement)
+            );
             println!("{}: {}", "Network".yellow().bold(), "Signet");
             println!("{}: {}", "Market Address".cyan().bold(), market_address);
             println!("{}: {}", "Status".yellow().bold(), market.get_status());
             println!("{}", "═".repeat(50).bright_black());
             println!();
             println!("{}", "Send bets to the market address above.".bright_blue());
-            println!("{}", "Winners will be paid out proportionally after settlement.".bright_blue());
+            println!(
+                "{}",
+                "Winners will be paid out proportionally after settlement.".bright_blue()
+            );
         }
-        
+
         Commands::Info { market_id } => {
             println!("{}", format!("Market Info: {}", market_id).green().bold());
             println!("{}", "This would show stored market information.".yellow());
-            println!("{}", "Note: Full market persistence not implemented in this demo.".bright_black());
+            println!(
+                "{}",
+                "Note: Full market persistence not implemented in this demo.".bright_black()
+            );
         }
-        
+
         Commands::GenerateId => {
             let id = generate_market_id();
             println!("{}: {}", "Generated Market ID".green().bold(), id.cyan());
         }
-        
+
         Commands::ValidateAddress { address, network } => {
             let network = u8_to_network(network)?;
             let is_valid = validate_address(&address, network);
-            
+
             if is_valid {
-                println!("{}: {} is {} for {}", 
+                println!(
+                    "{}: {} is {} for {}",
                     "Address Validation".green().bold(),
                     address.cyan(),
                     "valid".green(),
                     format!("{:?}", network).yellow()
                 );
             } else {
-                println!("{}: {} is {} for {}", 
+                println!(
+                    "{}: {} is {} for {}",
                     "Address Validation".red().bold(),
                     address.cyan(),
                     "invalid".red(),
@@ -138,31 +150,31 @@ async fn main() -> Result<()> {
                 );
             }
         }
-        
-        Commands::Convert { amount, unit } => {
-            match unit.to_lowercase().as_str() {
-                "btc" => {
-                    let satoshis = btc_to_satoshi(amount);
-                    println!("{}: {} BTC = {} satoshis", 
-                        "Conversion".green().bold(),
-                        amount.to_string().cyan(),
-                        satoshis.to_string().yellow()
-                    );
-                }
-                "sat" | "sats" => {
-                    let btc = satoshi_to_btc(amount as u64);
-                    println!("{}: {} satoshis = {} BTC", 
-                        "Conversion".green().bold(),
-                        (amount as u64).to_string().cyan(),
-                        btc.to_string().yellow()
-                    );
-                }
-                _ => {
-                    println!("{}: Unit must be 'btc' or 'sat'", "Error".red().bold());
-                }
+
+        Commands::Convert { amount, unit } => match unit.to_lowercase().as_str() {
+            "btc" => {
+                let satoshis = btc_to_satoshi(amount);
+                println!(
+                    "{}: {} BTC = {} satoshis",
+                    "Conversion".green().bold(),
+                    amount.to_string().cyan(),
+                    satoshis.to_string().yellow()
+                );
             }
-        }
-        
+            "sat" | "sats" => {
+                let btc = satoshi_to_btc(amount as u64);
+                println!(
+                    "{}: {} satoshis = {} BTC",
+                    "Conversion".green().bold(),
+                    (amount as u64).to_string().cyan(),
+                    btc.to_string().yellow()
+                );
+            }
+            _ => {
+                println!("{}: Unit must be 'btc' or 'sat'", "Error".red().bold());
+            }
+        },
+
         Commands::Hash { message } => {
             let hash = sha256_hash(&message);
             println!("{}: {}", "SHA256 Hash".green().bold(), hash.cyan());
@@ -174,7 +186,9 @@ async fn main() -> Result<()> {
 
 /// Print the markstr banner
 fn _print_banner() {
-    println!("{}", r#"
+    println!(
+        "{}",
+        r#"
     ┌─────────────────────────────────────────────────────┐
     │                                                     │
     │  ███╗   ███╗ █████╗ ██████╗ ██╗  ██╗███████╗████████╗██████╗  │
@@ -187,5 +201,7 @@ fn _print_banner() {
     │           Nostr-based Bitcoin Prediction Markets           │
     │                                                     │
     └─────────────────────────────────────────────────────┘
-    "#.bright_magenta());
+    "#
+        .bright_magenta()
+    );
 }

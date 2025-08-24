@@ -3,7 +3,8 @@ members = [
     "markstr-core",
     "markstr-wasm",
     "markstr-cli", 
-    "yew-webapp"
+    "yew-webapp",
+    "bitcoind-tests"
 ]
 resolver = "2"
 

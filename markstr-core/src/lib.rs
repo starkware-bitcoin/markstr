@@ -36,12 +36,18 @@
 //! Ok::<(), markstr_core::MarketError>(())
 //! ```
 
+pub mod deposit;
 pub mod error;
 pub mod market;
+pub mod pool;
+#[cfg(test)]
+pub mod test_utils;
 pub mod utils;
+pub mod withdraw;
 
+use bitcoin::Network;
 pub use error::{MarketError, Result};
-pub use market::{Bet, PredictionMarket, PredictionOutcome};
+pub use market::{Bet, MarketFees, PredictionMarket, PredictionOutcome};
 pub use utils::*;
 
 /// Default fee for market transactions (1000 satoshis)
@@ -49,3 +55,12 @@ pub const DEFAULT_MARKET_FEE: u64 = 1000;
 
 /// ```OP_CHECKSIGFROMSTACK``` opcode (0xcc)
 pub const OP_CHECKSIGFROMSTACK: u8 = 0xcc;
+
+/// Get the transaction version for a network.
+pub fn get_tx_version(network: Network) -> i32 {
+    match network {
+        Network::Signet => 2,
+        Network::Regtest => 3,
+        _ => 2,
+    }
+}
